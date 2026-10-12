@@ -545,8 +545,10 @@
     a.href = url; a.download = estado.pdfNome; document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
-  function nomeArquivo(t, tipo) {
-    var base = ['Contrato_Individual', t.faculdade, t.curso, t.semestre, tituloTipo(tipo)].join('_');
+  function nomeArquivo(t, tipo, nome) {
+    var primeiro = String(nome || '').trim().split(/\s+/)[0] || '';
+    primeiro = primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
+    var base = ['Contrato_Individual', primeiro, t.faculdade, t.curso, t.semestre, tituloTipo(tipo)].filter(Boolean).join('_');
     return base.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/_+/g, '_') + '.pdf';
   }
 
@@ -581,7 +583,7 @@
       }
       var ctx = { turma: estado.turma, tipo: estado.tipo, valor: Number(r.valor), dataIPCA: estado.turma.dataIPCA, dataMulta: estado.turma.dataMulta, d: paraContrato(d) };
       var doc = gerarPDF(ctx);
-      estado.pdfBlob = doc.output('blob'); estado.pdfNome = nomeArquivo(estado.turma, estado.tipo);
+      estado.pdfBlob = doc.output('blob'); estado.pdfNome = nomeArquivo(estado.turma, estado.tipo, d.nome);
       $('cDados').classList.add('oculto'); $('cLeitura').classList.add('oculto'); $('cSucesso').classList.remove('oculto');
       $('cSucesso').scrollIntoView({ behavior: 'smooth', block: 'start' });
       atualizarZap();
