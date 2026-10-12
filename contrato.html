@@ -129,6 +129,9 @@
         </div>
       </div>
 
+      <label for="fComplemento">Complemento <span style="font-weight:400;opacity:.7">(opcional)</span></label>
+      <input type="text" id="fComplemento" maxlength="100" placeholder="Ex.: Apto 302, Bloco B, próximo ao mercado">
+
       <div class="linha2">
         <div>
           <label for="fCidade">Cidade</label>
@@ -263,7 +266,7 @@
     B.push({ k: 'l', t: 'CPF: ' + v(d.cpf) });
     B.push({ k: 'l', t: 'E-MAIL: ' + v(d.email) });
     B.push({ k: 'l', t: 'ENDEREÇO: ' + v(d.endereco) });
-    B.push({ k: 'l', t: 'NÚMERO: ' + v(d.numero) + '   BAIRRO: ' + v(d.bairro) });
+    B.push({ k: 'l', t: 'NÚMERO: ' + v(d.numero) + (d.complemento ? '   COMPLEMENTO: ' + d.complemento : '') + '   BAIRRO: ' + v(d.bairro) });
     B.push({ k: 'l', t: 'CIDADE: ' + v(d.cidade) + '   CEP: ' + v(d.cep) + '   ESTADO: ' + v(d.estado) });
     B.push({ k: 'p', gap: true, t: 'Do curso de **' + nomeCurso(t) + '**, Instituição **' + String(t.faculdade || '').toUpperCase() + '**, semestre **' + t.semestre + '**, firmam o presente contrato, constituindo perante a CONTRATADA a responsabilidade de cumprir e respeitar os seguintes direitos e obrigações:' });
 
@@ -342,7 +345,7 @@
       var linhas = [], cur = [], curW = 0, limite = maxW - (indent || 0);
       palavras.forEach(function (p) {
         doc.setFont('helvetica', p.b ? 'bold' : 'normal');
-        p.ww = doc.getTextWidth(p.w);
+        p.ww = p.esp ? doc.getStringUnitWidth(' ') * FS / doc.internal.scaleFactor : doc.getTextWidth(p.w);
         if (p.esp) { if (cur.length) { cur.push(p); curW += p.ww; } return; }
         if (cur.length && curW + p.ww > limite) {
           while (cur.length && cur[cur.length - 1].esp) cur.pop();
@@ -360,12 +363,15 @@
         var segs = [];
         ln.forEach(function (p) {
           var u = segs[segs.length - 1];
-          if (u && u.b === !!p.b) u.t += p.w; else segs.push({ t: p.w, b: !!p.b });
+          if (u && u.b === !!p.b) { u.t += p.w; u.w += p.ww; } else segs.push({ t: p.w, b: !!p.b, w: p.ww });
         });
         segs.forEach(function (sg) {
           doc.setFont('helvetica', sg.b ? 'bold' : 'normal');
-          doc.text(sg.t, x, st.y);
-          x += doc.getTextWidth(sg.t);
+          // espaços das pontas não são desenhados (alguns leitores os ignoram); o avanço usa a largura calculada
+          var lead = sg.t.length - sg.t.replace(/^ +/, '').length;
+          var txt = sg.t.trim();
+          if (txt) doc.text(txt, x + lead * (doc.getStringUnitWidth(' ') * FS / doc.internal.scaleFactor), st.y);
+          x += sg.w;
         });
         st.y += LH;
       });
@@ -461,6 +467,7 @@
       cep: soDigitos($('fCep').value),
       endereco: $('fEndereco').value.trim(),
       numero: $('fNumero').value.trim(),
+      complemento: $('fComplemento').value.trim().replace(/\s+/g, ' '),
       bairro: $('fBairro').value.trim(),
       cidade: $('fCidade').value.trim(),
       estado: $('fEstado').value.trim().toUpperCase()
@@ -484,7 +491,7 @@
     return {
       nome: d.nome.toUpperCase(),
       celular: mCel(d.celular), cpf: mCpf(d.cpf), email: d.email,
-      endereco: d.endereco, numero: d.numero, bairro: d.bairro, cidade: d.cidade,
+      endereco: d.endereco, numero: d.numero, complemento: d.complemento, bairro: d.bairro, cidade: d.cidade,
       cep: mCep(d.cep), estado: d.estado
     };
   }
