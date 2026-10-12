@@ -355,10 +355,17 @@
       linhas.forEach(function (ln) {
         espaco(LH);
         var x = M + (indent || 0);
+        // agrupa palavras e espaços seguidos do mesmo estilo em um único texto, para o
+        // leitor de PDF espaçar as palavras sozinho (evita palavras coladas)
+        var segs = [];
         ln.forEach(function (p) {
-          doc.setFont('helvetica', p.b ? 'bold' : 'normal');
-          doc.text(p.w, x, st.y);
-          x += p.ww;
+          var u = segs[segs.length - 1];
+          if (u && u.b === !!p.b) u.t += p.w; else segs.push({ t: p.w, b: !!p.b });
+        });
+        segs.forEach(function (sg) {
+          doc.setFont('helvetica', sg.b ? 'bold' : 'normal');
+          doc.text(sg.t, x, st.y);
+          x += doc.getTextWidth(sg.t);
         });
         st.y += LH;
       });
