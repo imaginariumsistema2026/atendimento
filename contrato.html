@@ -266,7 +266,7 @@
     B.push({ k: 'l', t: 'CPF: ' + v(d.cpf) });
     B.push({ k: 'l', t: 'E-MAIL: ' + v(d.email) });
     B.push({ k: 'l', t: 'ENDEREÇO: ' + v(d.endereco) });
-    B.push({ k: 'l', t: 'NÚMERO: ' + v(d.numero) + (d.complemento ? '   COMPLEMENTO: ' + d.complemento : '') + '   BAIRRO: ' + v(d.bairro) });
+    B.push({ k: 'l', t: 'NÚMERO: ' + v(d.numero) + (d.complemento ? '   COMPLEMENTO: ' + v(d.complemento) : '') + '   BAIRRO: ' + v(d.bairro) });
     B.push({ k: 'l', t: 'CIDADE: ' + v(d.cidade) + '   CEP: ' + v(d.cep) + '   ESTADO: ' + v(d.estado) });
     B.push({ k: 'p', gap: true, t: 'Do curso de **' + nomeCurso(t) + '**, Instituição **' + String(t.faculdade || '').toUpperCase() + '**, semestre **' + t.semestre + '**, firmam o presente contrato, constituindo perante a CONTRATADA a responsabilidade de cumprir e respeitar os seguintes direitos e obrigações:' });
 
@@ -332,6 +332,8 @@
 
     function espaco(n) { if (st.y + n > H - M - 6) { doc.addPage(); st.y = M; } }
 
+    // largura fixa do espaço em Helvetica (278/1000 em), em mm — não depende da medição do leitor/biblioteca
+    var ESP = 0.278 * FS * 25.4 / 72;
     function escreverRuns(texto, indent, extraGap) {
       var palavras = [];
       runs(texto).forEach(function (r) {
@@ -345,7 +347,7 @@
       var linhas = [], cur = [], curW = 0, limite = maxW - (indent || 0);
       palavras.forEach(function (p) {
         doc.setFont('helvetica', p.b ? 'bold' : 'normal');
-        p.ww = p.esp ? doc.getStringUnitWidth(' ') * FS / doc.internal.scaleFactor : doc.getTextWidth(p.w);
+        p.ww = p.esp ? ESP : doc.getTextWidth(p.w);
         if (p.esp) { if (cur.length) { cur.push(p); curW += p.ww; } return; }
         if (cur.length && curW + p.ww > limite) {
           while (cur.length && cur[cur.length - 1].esp) cur.pop();
@@ -358,20 +360,10 @@
       linhas.forEach(function (ln) {
         espaco(LH);
         var x = M + (indent || 0);
-        // agrupa palavras e espaços seguidos do mesmo estilo em um único texto, para o
-        // leitor de PDF espaçar as palavras sozinho (evita palavras coladas)
-        var segs = [];
+        // cada palavra é desenhada na sua posição exata; o espaço é só avanço (nunca depende de medir espaço)
         ln.forEach(function (p) {
-          var u = segs[segs.length - 1];
-          if (u && u.b === !!p.b) { u.t += p.w; u.w += p.ww; } else segs.push({ t: p.w, b: !!p.b, w: p.ww });
-        });
-        segs.forEach(function (sg) {
-          doc.setFont('helvetica', sg.b ? 'bold' : 'normal');
-          // espaços das pontas não são desenhados (alguns leitores os ignoram); o avanço usa a largura calculada
-          var lead = sg.t.length - sg.t.replace(/^ +/, '').length;
-          var txt = sg.t.trim();
-          if (txt) doc.text(txt, x + lead * (doc.getStringUnitWidth(' ') * FS / doc.internal.scaleFactor), st.y);
-          x += sg.w;
+          if (!p.esp) { doc.setFont('helvetica', p.b ? 'bold' : 'normal'); doc.text(p.w, x, st.y); }
+          x += p.ww;
         });
         st.y += LH;
       });
