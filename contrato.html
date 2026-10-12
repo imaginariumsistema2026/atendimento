@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<title>Contrato Individual — Imaginarium Formaturas</title>
+<title>Contratos — Imaginarium Formaturas</title>
 <style>
   :root{
     --ouro:#b8893a; --ouro-esc:#8f6a28; --ouro-claro:#f6edd9;
@@ -61,6 +61,22 @@
   ol{padding-left:20px;margin:8px 0 0}
   ol li{margin-bottom:6px}
   .rodape{text-align:center;color:var(--cinza);font-size:13px;margin-top:22px}
+  .opcao{display:flex;gap:12px;align-items:flex-start;border:1.5px solid var(--linha);border-radius:14px;padding:14px 16px;cursor:pointer;margin-top:10px}
+  .opcao input{width:24px;height:24px;margin-top:2px;flex:0 0 auto}
+  .opcao b{display:block;font-size:17px}
+  .opcao span{color:var(--cinza);font-size:15px}
+  .opcao.sel{border-color:var(--ouro);background:var(--ouro-claro)}
+  .btn-ler{background:#fff;color:var(--ouro-esc);border:1.5px solid var(--ouro);margin-top:10px}
+  .painel{position:fixed;inset:0;z-index:50;background:#fff;display:flex;flex-direction:column}
+  .painelTopo{display:flex;align-items:center;gap:12px;padding:max(12px,env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid var(--linha)}
+  .painelTopo button{font:inherit;font-weight:700;color:var(--ouro-esc);background:none;border:none;padding:8px 4px;cursor:pointer}
+  .painelTopo b{font-size:16px}
+  .painelCorpo{flex:1;overflow-y:auto;padding:16px;font-size:14.5px;line-height:1.5;-webkit-overflow-scrolling:touch}
+  .painelCorpo h3{font-size:14.5px;margin:14px 0 4px}
+  .painelCorpo p{margin:0 0 8px}
+  .painelCorpo .tit{font-weight:700;font-size:15px}
+  .painelRodape{padding:10px 16px max(14px,env(safe-area-inset-bottom));border-top:1px solid var(--linha)}
+  .painelRodape .btn{margin-top:0}
 </style>
 </head>
 <body>
@@ -76,21 +92,27 @@
 
   <div id="tPrincipal" class="oculto">
     <div class="card">
-      <h1>Contrato Individual</h1>
+      <h1>Contratos</h1>
       <div class="dadosTurma"><div><span>Instituição</span><b id="tagFac"></b></div><div><span>Curso</span><b id="tagCurso"></b></div><div><span>Semestre</span><b id="tagSem"></b></div></div>
-      <p class="mut" style="margin-bottom:6px">1. Escolha o tipo de formatura</p>
+      <p class="mut" style="margin-bottom:6px"><b>1. Contrato individual</b> (obrigatório) — escolha o tipo de formatura</p>
       <div class="tipos" id="tipos"></div>
     </div>
 
+    <div class="card oculto" id="cFoto">
+      <h2>2. Link de fotos <span class="mut" style="font-weight:400">(opcional)</span></h2>
+      <label class="opcao" id="opcaoFoto"><input type="checkbox" id="fFoto"><div><b>Quero também contratar o link de fotos</b><span>Acesso aos arquivos digitais da formatura · <b style="display:block;color:var(--tinta);margin-top:4px" id="valorFoto"></b></span></div></label>
+    </div>
+
     <div class="card oculto" id="cLeitura">
-      <h2>2. Leia o contrato</h2>
-      <p class="mut">Confira o texto antes de preencher seus dados. Os dados do contratante aparecem em branco aqui e são preenchidos no PDF.</p>
-      <div class="contrato" id="textoContrato"></div>
+      <h2>3. Leia o contrato</h2>
+      <p class="mut">Confira o texto antes de preencher seus dados. Ao voltar, tudo o que você já digitou continua na tela.</p>
+      <button type="button" class="btn btn-ler" id="btnLerInd">Ler contrato individual</button>
+      <button type="button" class="btn btn-ler oculto" id="btnLerFoto">Ler contrato do link de fotos</button>
     </div>
 
     <div class="card oculto" id="cDados">
-      <h2>3. Seus dados</h2>
-      <p class="mut">Preencha como no seu documento. Eles serão usados só neste contrato.</p>
+      <h2>4. Seus dados</h2>
+      <p class="mut">Preencha como no seu documento. Eles serão usados nos contratos escolhidos.</p>
 
       <label for="fNome">Nome completo</label>
       <input type="text" id="fNome" autocomplete="name" maxlength="120">
@@ -145,7 +167,7 @@
         </div>
       </div>
 
-      <label class="aceite"><input type="checkbox" id="fAceite"><span>Li o contrato e concordo com os termos.</span></label>
+      <label class="aceite"><input type="checkbox" id="fAceite"><span>Li o(s) contrato(s) escolhido(s) e concordo com os termos.</span></label>
       <div class="fe" id="e_aceite">Marque que leu e concorda para continuar.</div>
 
       <div class="msg erro oculto" id="msgErro"></div>
@@ -154,23 +176,30 @@
     </div>
 
     <div class="card oculto" id="cSucesso">
-      <h2>Contrato gerado!</h2>
-      <div class="msg ok" style="margin-top:0">Seus dados foram registrados e o PDF foi baixado. Se não baixou, use o botão abaixo.</div>
-      <button type="button" class="btn btn-ouro" id="btnBaixar">Baixar o PDF novamente</button>
+      <h2 id="sucTitulo">Contrato gerado!</h2>
+      <div class="msg ok" style="margin-top:0" id="sucMsg">Seus dados foram registrados e o PDF foi baixado. Se não baixou, use o botão abaixo.</div>
+      <button type="button" class="btn btn-ouro" id="btnBaixar">Baixar contrato individual</button>
+      <button type="button" class="btn btn-ouro oculto" id="btnBaixarFoto">Baixar contrato do link de fotos</button>
       <p style="margin-top:16px"><b>Próximos passos</b></p>
       <ol>
-        <li>Abra o PDF e confira seus dados.</li>
+        <li>Abra o(s) PDF(s) e confira seus dados.</li>
         <li>Assine digitalmente pelo gov.br: <a href="https://assinador.iti.br/" target="_blank" rel="noopener">assinador.iti.br</a>.</li>
-        <li>Depois de assinar, use o botão verde <b>“Enviar PDF assinado no WhatsApp”</b> (no fim desta página) para mandar o PDF ao nosso financeiro.</li>
+        <li>Depois de assinar, use o botão verde <b>“Enviar PDF assinado no WhatsApp”</b> (no fim desta página) para mandar o(s) PDF(s) assinado(s) ao nosso financeiro.</li>
       </ol>
       <button type="button" class="btn btn-sec" id="btnCorrigir">Corrigir meus dados e gerar de novo</button>
     </div>
 
     <div class="card" id="cEnviar">
-      <h2>Enviar o contrato assinado</h2>
-      <p class="mut">Após assinar o PDF, clique no botão abaixo para enviar o PDF assinado ao nosso financeiro pelo WhatsApp. A mensagem já vai preenchida; é só anexar o PDF assinado.</p>
+      <h2>Enviar o(s) contrato(s) assinado(s)</h2>
+      <p class="mut">Após assinar, clique no botão abaixo para enviar ao nosso financeiro pelo WhatsApp. A mensagem já vai preenchida; é só anexar, dentro do WhatsApp, o contrato individual assinado e, se você escolheu, o contrato do link de fotos assinado.</p>
       <a class="btn btn-ouro" id="btnZap" href="#" target="_blank" rel="noopener">Enviar PDF assinado no WhatsApp</a>
     </div>
+  </div>
+
+  <div class="painel oculto" id="painel">
+    <div class="painelTopo"><button type="button" id="pVoltar">← Voltar</button><b id="pTitulo"></b></div>
+    <div class="painelCorpo" id="pTexto"></div>
+    <div class="painelRodape"><button type="button" class="btn btn-ouro" id="pVoltar2">Voltar e continuar</button></div>
   </div>
 
   <div class="rodape">Imaginarium Formaturas</div>
@@ -187,7 +216,7 @@
 
   var $ = function (id) { return document.getElementById(id); };
   $('imgA').src = IMG_A; $('imgN').src = IMG_N;
-  var estado = { token: null, turma: null, tipo: null, pdfBlob: null, pdfNome: '', enviando: false };
+  var estado = { token: null, turma: null, tipo: null, foto: false, pdfBlob: null, pdfNome: '', pdfBlobFoto: null, pdfNomeFoto: '', enviando: false };
   var MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
   var UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
 
@@ -274,7 +303,7 @@
     B.push({ k: 'p', t: 'O presente contrato tem como objeto a arrecadação de fundos para a contratação dos ' + objeto + ' na formatura em questão, do qual o CONTRATANTE é parte integrante, adquirindo, por este contrato, sua quota parte.' });
     B.push({ k: 'h', t: 'CLÁUSULA SEGUNDA - VALOR E PAGAMENTO' });
     B.push({ k: 'p', t: 'O CONTRATANTE se compromete a pagar sua quota parte no valor de **' + valorTxt + '**, conforme previsto no orçamento (anexo 1) em posse da comissão de formatura.' });
-    B.push({ k: 'p', t: '**Parágrafo Primeiro:** O pagamento deverá ser efetuado **mensalmente**, sendo que a última parcela deve ser 60 dias precedentes à formatura.' });
+    B.push({ k: 'p', t: '**Parágrafo Primeiro:** O pagamento deverá ser efetuado **mensalmente**, sendo que a última parcela deve ser paga até **30 (trinta) dias antes da data da colação de grau**.' });
     B.push({ k: 'p', t: '**Parágrafo Segundo:** O pagamento deve ser realizado via PIX para a empresa **Imaginarium Org. Festa e Eventos** (Unicred - Banco 136 / Agência 1409 / Conta 465105-7 / CNPJ: 48.033.407/0001-41).' });
     B.push({ k: 'p', t: '**Parágrafo Terceiro:** O comprovante de pagamento deverá ser enviado via WhatsApp para o setor financeiro no número **(48) 99975-5928**, informando nome do aluno, curso, universidade e semestre.' });
     B.push({ k: 'p', t: '**Parágrafo Quarto:** O Valor deste contrato refere-se ao pagamento iniciado até dia **' + dataBR(ctx.dataIPCA) + '**. A partir desta data, o valor será corrigido pelo IPCA.' });
@@ -306,6 +335,53 @@
     return B;
   }
 
+  function blocosFoto(ctx) {
+    var d = ctx.d || {}, t = ctx.turma;
+    var v = function (x) { return x ? '**' + x + '**' : '………………………………………'; };
+    var valorTxt = 'R$ ' + moedaBR(ctx.valor) + ' (' + valorExtenso(ctx.valor) + ')';
+    var valorTxt2 = 'R$ ' + moedaBR(ctx.valorApos) + ' (' + valorExtenso(ctx.valorApos) + ')';
+    var B = [];
+    B.push({ k: 'titulo', t: 'CONTRATO DE AQUISIÇÃO DE ARQUIVOS DIGITAIS' });
+    B.push({ k: 'p', t: '**CONTRATADA:** IMAGINARIUM FORMATURAS, Pessoa Jurídica de Direito Privado, inscrita no CNPJ 48.033.407/0001-41, estabelecida na cidade de Tubarão, sediada à Rua João Fernandes Lima, 916, Vila Esperança, CEP 88.708-300, representada neste ato por seu Representante Legal.' });
+    B.push({ k: 'l', t: '**CONTRATANTE:**' });
+    B.push({ k: 'l', t: 'NOME: ' + v(d.nome) });
+    B.push({ k: 'l', t: 'CELULAR: ' + v(d.celular) });
+    B.push({ k: 'l', t: 'CPF: ' + v(d.cpf) });
+    B.push({ k: 'l', t: 'E-MAIL: ' + v(d.email) });
+    B.push({ k: 'l', t: 'ENDEREÇO: ' + v(d.endereco) });
+    B.push({ k: 'l', t: 'NÚMERO: ' + v(d.numero) + (d.complemento ? '   COMPLEMENTO: ' + v(d.complemento) : '') + '   BAIRRO: ' + v(d.bairro) });
+    B.push({ k: 'l', t: 'CIDADE: ' + v(d.cidade) + '   CEP: ' + v(d.cep) + '   ESTADO: ' + v(d.estado) });
+    B.push({ k: 'l', t: 'INSTITUIÇÃO DE ENSINO: **' + String(t.faculdade || '').toUpperCase() + '**' });
+    B.push({ k: 'l', t: 'CURSO: **' + nomeCurso(t) + '**   SEMESTRE: **' + t.semestre + '**' });
+    B.push({ k: 'p', gap: true, t: 'Firmam o presente contrato de aquisição de arquivos digitais, constituindo perante a CONTRATADA a responsabilidade de cumprir e respeitar os seguintes direitos e obrigações.' });
+
+    B.push({ k: 'h', t: 'CLÁUSULA PRIMEIRA - OBJETO' });
+    B.push({ k: 'p', t: 'O presente contrato tem como objeto a aquisição, pelo CONTRATANTE, de um link com acesso aos arquivos digitais relacionados à sua formatura, incluindo os registros fotográficos e audiovisuais produzidos nos eventos oficiais da formatura (ensaios, colação de grau e baile, se realizados) nos quais o CONTRATANTE figure, de forma individual ou em registros coletivos, não estando incluídas imagens de terceiros, familiares ou amigos que não contenham a presença do CONTRATANTE.' });
+    B.push({ k: 'h', t: 'CLÁUSULA SEGUNDA - VALOR E FORMAS DE PAGAMENTO' });
+    B.push({ k: 'p', t: 'O valor para aquisição do link de acesso aos arquivos digitais será de:' });
+    B.push({ k: 'p', ind: true, t: 'I - **' + valorTxt + '**, quando contratado até 30 (trinta) dias antes da data da colação de grau, devendo o pagamento ser integralmente quitado até essa mesma data;' });
+    B.push({ k: 'p', ind: true, t: 'II - **' + valorTxt2 + '**, quando contratado após esse prazo, tendo como referência a data da assinatura deste contrato.' });
+    B.push({ k: 'p', t: '**Parágrafo Primeiro:** O pagamento poderá ser realizado à vista ou conforme as condições eventualmente oferecidas pela CONTRATADA no momento da contratação.' });
+    B.push({ k: 'p', t: '**Parágrafo Segundo:** O não pagamento na forma e prazos estabelecidos caracterizará inadimplência, ficando a disponibilização do link condicionada à regularização do débito.' });
+    B.push({ k: 'p', t: '**Parágrafo Terceiro:** Os valores previstos nesta cláusula são fixos e não sofrerão reajuste após a contratação.' });
+    B.push({ k: 'h', t: 'CLÁUSULA TERCEIRA - DISPONIBILIZAÇÃO E VALIDADE DO LINK' });
+    B.push({ k: 'p', t: 'O link para acesso aos arquivos digitais será disponibilizado pela CONTRATADA à comissão de formatura no prazo de até 75 (setenta e cinco) dias, contados da data de realização dos eventos oficiais da formatura (colação de grau e baile), desde que o CONTRATANTE esteja adimplente.' });
+    B.push({ k: 'p', t: '**Parágrafo Primeiro:** Após o envio do link à comissão de formatura, o acesso permanecerá disponível pelo prazo de 60 (sessenta) dias corridos, contados da data do envio, cabendo exclusivamente ao CONTRATANTE realizar o download dos arquivos dentro desse período.' });
+    B.push({ k: 'p', t: '**Parágrafo Segundo:** Caso o prazo de acesso expire e o CONTRATANTE solicite novo envio do link, será cobrada taxa de R$ 40,00 (quarenta reais) por reenvio.' });
+    B.push({ k: 'p', t: '**Parágrafo Terceiro:** Decorrido o prazo de 75 (setenta e cinco) dias contados da realização dos eventos oficiais da formatura, eventual disponibilização ou reenvio do link ficará condicionada à disponibilidade técnica de armazenamento da CONTRATADA, respeitado o limite máximo de até 12 (doze) meses após a data da colação de grau.' });
+    B.push({ k: 'p', t: '**Parágrafo Quarto:** O CONTRATANTE declara estar plenamente ciente dos prazos de disponibilização e validade do link previstos nesta cláusula, comprometendo-se a realizar o download dos arquivos dentro do período estabelecido.' });
+    B.push({ k: 'h', t: 'CLÁUSULA QUARTA - CANCELAMENTO E REEMBOLSO' });
+    B.push({ k: 'p', t: 'Em caso de desistência da formatura, desligamento do CONTRATANTE da turma ou cancelamento de sua participação nos eventos oficiais, o reembolso dos valores pagos por este contrato observará as regras previstas no contrato principal de prestação de serviços firmado com a comissão de formatura, bem como no contrato individual de formatura firmado entre as partes.' });
+    B.push({ k: 'p', t: '**Parágrafo Único:** Após a disponibilização do link ao CONTRATANTE ou à comissão de formatura, não haverá reembolso dos valores pagos, considerando a natureza digital do produto, o acesso integral ao conteúdo e a impossibilidade de restituição do material já disponibilizado.' });
+    B.push({ k: 'h', t: 'CLÁUSULA QUINTA - FORO' });
+    B.push({ k: 'p', t: 'As partes elegem o Foro da Comarca de Tubarão, Estado de Santa Catarina, para dirimir as controvérsias oriundas deste contrato, sem prejuízo das disposições legais aplicáveis às relações de consumo.' });
+    B.push({ k: 'h', t: 'CLÁUSULA SEXTA - ASSINATURA ELETRÔNICA' });
+    B.push({ k: 'p', t: 'As partes reconhecem a validade jurídica do presente contrato quando firmado por meio eletrônico ou digital, nos termos da legislação vigente, especialmente a Medida Provisória nº 2.200-2/2001, equiparando-se a assinatura digital à assinatura manuscrita para todos os fins de direito.' });
+    return B;
+  }
+  function blocos(ctx) { return ctx.doc === 'foto' ? blocosFoto(ctx) : blocosContrato(ctx); }
+  function tagDoc(ctx) { return ctx.doc === 'foto' ? 'Link de Fotos' : tituloTipo(ctx.tipo); }
+
   function runs(t) {
     var out = [], partes = String(t).split('**');
     for (var i = 0; i < partes.length; i++) if (partes[i]) out.push({ t: partes[i], b: i % 2 === 1 });
@@ -314,8 +390,8 @@
   function htmlRuns(t) { return runs(t).map(function (r) { return r.b ? '<b>' + esc(r.t) + '</b>' : esc(r.t); }).join(''); }
 
   function htmlContrato(ctx) {
-    return blocosContrato(ctx).map(function (b) {
-      if (b.k === 'titulo') return '<p class="tit">' + esc(b.t) + ' <span class="tag" style="margin:0 0 0 4px">' + esc(tituloTipo(ctx.tipo)) + '</span></p>';
+    return blocos(ctx).map(function (b) {
+      if (b.k === 'titulo') return '<p class="tit">' + esc(b.t) + ' <span class="tag" style="margin:0 0 0 4px">' + esc(tagDoc(ctx)) + '</span></p>';
       if (b.k === 'h') return '<h3>' + esc(b.t) + '</h3>';
       if (b.k === 'l') return '<p style="margin-bottom:3px">' + htmlRuns(b.t) + '</p>';
       return '<p' + (b.ind ? ' style="margin-left:18px"' : '') + '>' + htmlRuns(b.t) + '</p>';
@@ -328,7 +404,7 @@
     var doc = new jsPDF({ unit: 'mm', format: 'a4' });
     var W = 210, H = 297, M = 20, LH = 4.9, FS = 10, maxW = W - 2 * M;
     var st = { y: 0 };
-    doc.setProperties({ title: 'Contrato Individual - ' + ctx.d.nome, author: 'Imaginarium Formaturas' });
+    doc.setProperties({ title: (ctx.doc === 'foto' ? 'Contrato Link de Fotos - ' : 'Contrato Individual - ') + ctx.d.nome, author: 'Imaginarium Formaturas' });
 
     function espaco(n) { if (st.y + n > H - M - 6) { doc.addPage(); st.y = M; } }
 
@@ -392,8 +468,9 @@
     doc.setDrawColor(184, 153, 77); doc.setLineWidth(0.35); doc.line(M, yl, W - M, yl);
     var yt = yl + 8;
     doc.setTextColor(0, 0, 0); doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
-    doc.text('CONTRATO INDIVIDUAL DE PRESTAÇÃO DE SERVIÇOS', M, yt);
-    var tag = tituloTipo(ctx.tipo);
+    var blocosDoc = blocos(ctx);
+    doc.text(blocosDoc[0].t, M, yt);
+    var tag = tagDoc(ctx);
     doc.setFontSize(8.5);
     var tw = doc.getTextWidth(tag) + 6;
     doc.setFillColor(242, 232, 204); doc.setDrawColor(184, 153, 77); doc.setLineWidth(0.25);
@@ -402,8 +479,7 @@
     doc.setTextColor(0, 0, 0);
     st.y = yt + 9;
 
-    var blocos = blocosContrato(ctx);
-    blocos.forEach(function (b) {
+    blocosDoc.forEach(function (b) {
       if (b.k === 'titulo') return;
       if (b.k === 'h') { espaco(LH * 4); st.y += 1.5; escreverRuns('**' + b.t + '**', 0, 0.6); return; }
       if (b.k === 'l') { escreverRuns(b.t, 0, 0); return; }
@@ -513,14 +589,44 @@
   function atualizarZap() {
     var t = estado.turma || {};
     var nome = ($('fNome').value || '').trim();
-    var txt = 'Olá! Segue meu contrato individual assinado.\nInstituição: ' + (t.faculdade || '') + '\nCurso: ' + (t.curso || '') + '\nSemestre: ' + (t.semestre || '') + '\nNome: ' + nome;
+    var txt = 'Olá! Segue meu contrato individual assinado' + (estado.foto ? ' e meu contrato do link de fotos assinado' : '') + '.\nInstituição: ' + (t.faculdade || '') + '\nCurso: ' + (t.curso || '') + '\nSemestre: ' + (t.semestre || '') + '\nNome: ' + nome;
     $('btnZap').href = 'https://wa.me/5548999755928?text=' + encodeURIComponent(txt);
+  }
+
+  function rotuloGerar() { return estado.foto ? 'Gerar contratos em PDF' : 'Gerar contrato em PDF'; }
+  function atualizarFoto() {
+    estado.foto = !!$('fFoto').checked && !!estado.turma && estado.turma.valorLinkFoto != null && estado.turma.valorLinkFotoApos != null;
+    $('opcaoFoto').classList.toggle('sel', estado.foto);
+    $('btnLerFoto').classList.toggle('oculto', !estado.foto);
+    $('btnGerar').textContent = rotuloGerar();
+    atualizarZap();
+  }
+
+  // painel de leitura: abre por cima da página, sem apagar nada do formulário
+  var painelAberto = false;
+  function textoPainel(doc) {
+    var t = estado.turma, d = paraContrato(lerDados());
+    if (doc === 'foto') return htmlContrato({ doc: 'foto', turma: t, tipo: estado.tipo, valor: t.valorLinkFoto, valorApos: t.valorLinkFotoApos, d: d });
+    return htmlContrato({ doc: 'ind', turma: t, tipo: estado.tipo, valor: valorDoTipo(estado.tipo), dataIPCA: t.dataIPCA, dataMulta: t.dataMulta, d: d });
+  }
+  function abrirPainel(doc) {
+    if (doc !== 'foto' && !estado.tipo) return;
+    $('pTitulo').textContent = doc === 'foto' ? 'Contrato do link de fotos' : 'Contrato individual';
+    $('pTexto').innerHTML = textoPainel(doc);
+    $('pTexto').scrollTop = 0;
+    $('painel').classList.remove('oculto');
+    painelAberto = true;
+    try { history.pushState({ p: 1 }, ''); } catch (e) { /* sem histórico: o botão Voltar da tela fecha */ }
+  }
+  function esconderPainel() { $('painel').classList.add('oculto'); painelAberto = false; }
+  function fecharPainel() {
+    if (!painelAberto) return;
+    if (history.state && history.state.p) history.back(); else esconderPainel();
   }
 
   function escolherTipo(tipo) {
     estado.tipo = tipo;
     Array.prototype.forEach.call(document.querySelectorAll('.tipo'), function (b) { b.classList.toggle('sel', b.getAttribute('data-tipo') === tipo); });
-    $('textoContrato').innerHTML = htmlContrato({ turma: estado.turma, tipo: tipo, valor: valorDoTipo(tipo), dataIPCA: estado.turma.dataIPCA, dataMulta: estado.turma.dataMulta, d: null });
     $('cLeitura').classList.remove('oculto'); $('cDados').classList.remove('oculto');
     $('cSucesso').classList.add('oculto');
     atualizarZap();
@@ -546,21 +652,23 @@
       b.addEventListener('click', function () { escolherTipo(b.getAttribute('data-tipo')); });
     });
     $('fEstado').innerHTML = '<option value="">UF</option>' + UFS.map(function (u) { return '<option>' + u + '</option>'; }).join('');
+    if (t.valorLinkFoto != null && t.valorLinkFotoApos != null) { $('valorFoto').textContent = 'R$ ' + moedaBR(t.valorLinkFoto) + ' até 30 dias antes da colação de grau · R$ ' + moedaBR(t.valorLinkFotoApos) + ' depois'; $('cFoto').classList.remove('oculto'); }
     $('tCarregando').classList.add('oculto'); $('tPrincipal').classList.remove('oculto');
     atualizarZap();
     if (tipos.length === 1) escolherTipo(tipos[0].k);
   }
 
-  function baixarBlob() {
-    if (!estado.pdfBlob) return;
-    var url = URL.createObjectURL(estado.pdfBlob), a = document.createElement('a');
-    a.href = url; a.download = estado.pdfNome; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  function baixarBlob(qual) {
+    var blob = qual === 'foto' ? estado.pdfBlobFoto : estado.pdfBlob;
+    if (!blob) return;
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = qual === 'foto' ? estado.pdfNomeFoto : estado.pdfNome; document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
   }
-  function nomeArquivo(t, tipo, nome) {
+  function nomeArquivo(t, tipo, nome, doc) {
     var primeiro = String(nome || '').trim().split(/\s+/)[0] || '';
     primeiro = primeiro.charAt(0).toUpperCase() + primeiro.slice(1).toLowerCase();
-    var base = ['Contrato_Individual', primeiro, t.faculdade, t.curso, t.semestre, tituloTipo(tipo)].filter(Boolean).join('_');
+    var base = (doc === 'foto' ? ['Contrato_Link_de_Fotos', primeiro, t.faculdade, t.curso, t.semestre] : ['Contrato_Individual', primeiro, t.faculdade, t.curso, t.semestre, tituloTipo(tipo)]).filter(Boolean).join('_');
     return base.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9_-]+/g, '_').replace(/_+/g, '_') + '.pdf';
   }
 
@@ -580,30 +688,48 @@
     if (!window.jspdf || !window.jspdf.jsPDF) { exibirErro('Não foi possível carregar o gerador de PDF. Confira a internet e tente de novo.'); return; }
 
     estado.enviando = true; $('btnGerar').disabled = true; $('btnGerar').textContent = 'Gerando...';
-    rpc('contrato_enviar', { p_token: estado.token, p_tipo: estado.tipo, p_dados: d }).then(function (r) {
+    var comFoto = estado.foto;
+    rpc('contrato_enviar_v2', { p_token: estado.token, p_tipo: estado.tipo, p_dados: d, p_com_foto: comFoto }).then(function (r) {
       if (!r || !r.ok) {
         var msg = {
           link_invalido: 'Este link não é válido. Peça um novo link à comissão.',
           link_expirado: 'O prazo deste link terminou. Peça um novo link à comissão.',
           valores_nao_cadastrados: 'O valor deste contrato ainda não foi cadastrado. Fale com a comissão.',
           ja_conferido: 'Seu contrato já foi conferido pela Imaginarium e não pode ser gerado de novo por aqui. Fale com a comissão.',
-          tipo_invalido: 'Escolha o tipo de formatura.'
+          tipo_invalido: 'Escolha o tipo de formatura.',
+          link_foto_indisponivel: 'O contrato do link de fotos não está disponível para esta turma. Desmarque essa opção ou fale com a comissão.'
         }[r && r.erro];
-        if (r && r.erro === 'dado_invalido' && r.campo) { marcar(r.campo, true); $(ID_CAMPO[r.campo]).scrollIntoView({ behavior: 'smooth', block: 'center' }); msg = 'Confira o campo destacado.'; }
+        if (r && r.erro === 'dado_invalido' && r.campo && $(ID_CAMPO[r.campo])) { marcar(r.campo, true); $(ID_CAMPO[r.campo]).scrollIntoView({ behavior: 'smooth', block: 'center' }); msg = 'Confira o campo destacado.'; }
         exibirErro(msg || 'Não foi possível registrar o contrato. Tente de novo.');
         return;
       }
-      var ctx = { turma: estado.turma, tipo: estado.tipo, valor: Number(r.valor), dataIPCA: estado.turma.dataIPCA, dataMulta: estado.turma.dataMulta, d: paraContrato(d) };
-      var doc = gerarPDF(ctx);
-      estado.pdfBlob = doc.output('blob'); estado.pdfNome = nomeArquivo(estado.turma, estado.tipo, d.nome);
-      $('cDados').classList.add('oculto'); $('cLeitura').classList.add('oculto'); $('cSucesso').classList.remove('oculto');
+      var ind = r.individual || {};
+      var indOk = ind.ok === true;
+      var dc = paraContrato(d);
+      estado.pdfBlob = null; estado.pdfBlobFoto = null;
+      if (indOk) {
+        var doc1 = gerarPDF({ doc: 'ind', turma: estado.turma, tipo: estado.tipo, valor: Number(ind.valor), dataIPCA: estado.turma.dataIPCA, dataMulta: estado.turma.dataMulta, d: dc });
+        estado.pdfBlob = doc1.output('blob'); estado.pdfNome = nomeArquivo(estado.turma, estado.tipo, d.nome);
+      }
+      if (comFoto && r.foto && r.foto.ok) {
+        var doc2 = gerarPDF({ doc: 'foto', turma: estado.turma, tipo: estado.tipo, valor: Number(estado.turma.valorLinkFoto), valorApos: Number(estado.turma.valorLinkFotoApos), d: dc });
+        estado.pdfBlobFoto = doc2.output('blob'); estado.pdfNomeFoto = nomeArquivo(estado.turma, estado.tipo, d.nome, 'foto');
+      }
+      $('btnBaixar').classList.toggle('oculto', !estado.pdfBlob);
+      $('btnBaixarFoto').classList.toggle('oculto', !estado.pdfBlobFoto);
+      $('sucTitulo').textContent = estado.pdfBlobFoto && estado.pdfBlob ? 'Contratos gerados!' : 'Contrato gerado!';
+      $('sucMsg').textContent = !indOk
+        ? 'Seu contrato individual já foi conferido pela Imaginarium e continua como está. Geramos o contrato do link de fotos; baixe-o abaixo.'
+        : (estado.pdfBlobFoto ? 'Seus dados foram registrados. Baixe os dois PDFs nos botões abaixo (o individual já deve ter baixado).' : 'Seus dados foram registrados e o PDF foi baixado. Se não baixou, use o botão abaixo.');
+      $('cDados').classList.add('oculto'); $('cLeitura').classList.add('oculto'); $('cFoto').classList.add('oculto'); $('cSucesso').classList.remove('oculto');
       $('cSucesso').scrollIntoView({ behavior: 'smooth', block: 'start' });
       atualizarZap();
-      baixarBlob();
+      if (estado.pdfBlob) baixarBlob();
+      else if (estado.pdfBlobFoto) baixarBlob('foto');
     }).catch(function () {
       exibirErro('Sem conexão com o servidor. Confira a internet e tente de novo.');
     }).then(function () {
-      estado.enviando = false; $('btnGerar').disabled = false; $('btnGerar').textContent = 'Gerar contrato em PDF';
+      estado.enviando = false; $('btnGerar').disabled = false; $('btnGerar').textContent = rotuloGerar();
     });
   }
   function exibirErro(m) { var e = $('msgErro'); e.textContent = m; e.classList.remove('oculto'); e.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
@@ -629,11 +755,19 @@
     mascara($('fCpf'), mCpf); mascara($('fCelular'), mCel); mascara($('fCep'), mCep);
     $('fCep').addEventListener('input', buscarCep);
     $('btnGerar').addEventListener('click', gerar);
-    $('btnBaixar').addEventListener('click', baixarBlob);
+    $('btnBaixar').addEventListener('click', function () { baixarBlob(); });
+    $('btnBaixarFoto').addEventListener('click', function () { baixarBlob('foto'); });
+    $('fFoto').addEventListener('change', atualizarFoto);
+    $('btnLerInd').addEventListener('click', function () { abrirPainel('ind'); });
+    $('btnLerFoto').addEventListener('click', function () { abrirPainel('foto'); });
+    $('pVoltar').addEventListener('click', fecharPainel);
+    $('pVoltar2').addEventListener('click', fecharPainel);
+    window.addEventListener('popstate', function () { if (painelAberto) esconderPainel(); });
     $('fNome').addEventListener('input', atualizarZap);
     $('btnZap').addEventListener('click', atualizarZap);
     $('btnCorrigir').addEventListener('click', function () {
       $('cSucesso').classList.add('oculto'); $('cLeitura').classList.remove('oculto'); $('cDados').classList.remove('oculto');
+      if (estado.turma && estado.turma.valorLinkFoto != null && estado.turma.valorLinkFotoApos != null) $('cFoto').classList.remove('oculto');
       $('cDados').scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
     CAMPOS.forEach(function (c) { $(ID_CAMPO[c]).addEventListener('input', function () { marcar(c, false); }); });
