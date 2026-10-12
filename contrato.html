@@ -334,6 +334,19 @@
 
     // largura fixa do espaço em Helvetica (278/1000 em), em mm — não depende da medição do leitor/biblioteca
     var ESP = 0.278 * FS * 25.4 / 72;
+    // largura da palavra SOMANDO letra por letra (sem kerning): a biblioteca mede com kerning
+    // (ex.: "TA", "AT" em CONTRATANTE ficam mais estreitos), mas o PDF desenha sem kerning —
+    // por isso a palavra seguinte ficava colada. Medindo letra a letra a conta bate com o desenho.
+    var cacheL = {};
+    function larg(txt, b) {
+      var tot = 0;
+      for (var i = 0; i < txt.length; i++) {
+        var k = (b ? 'b' : 'n') + txt.charAt(i);
+        if (cacheL[k] === undefined) { doc.setFont('helvetica', b ? 'bold' : 'normal'); cacheL[k] = doc.getStringUnitWidth(txt.charAt(i)) * FS / doc.internal.scaleFactor; }
+        tot += cacheL[k];
+      }
+      return tot;
+    }
     function escreverRuns(texto, indent, extraGap) {
       var palavras = [];
       runs(texto).forEach(function (r) {
@@ -347,7 +360,7 @@
       var linhas = [], cur = [], curW = 0, limite = maxW - (indent || 0);
       palavras.forEach(function (p) {
         doc.setFont('helvetica', p.b ? 'bold' : 'normal');
-        p.ww = p.esp ? ESP : doc.getTextWidth(p.w);
+        p.ww = p.esp ? ESP : larg(p.w, p.b);
         if (p.esp) { if (cur.length) { cur.push(p); curW += p.ww; } return; }
         if (cur.length && curW + p.ww > limite) {
           while (cur.length && cur[cur.length - 1].esp) cur.pop();
