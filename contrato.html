@@ -630,7 +630,9 @@
     $('cLeitura').classList.remove('oculto'); $('cDados').classList.remove('oculto');
     $('cSucesso').classList.add('oculto');
     atualizarZap();
-    $('cLeitura').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // se a turma tem a opção do link de fotos, leva o formando primeiro para ela (fica entre a escolha e a leitura)
+    var alvo = $('cFoto').classList.contains('oculto') ? $('cLeitura') : $('cFoto');
+    alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function iniciar(t) {
