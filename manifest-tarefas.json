@@ -1,0 +1,16 @@
+{
+  "name": "Tarefas Imaginarium",
+  "short_name": "Tarefas",
+  "description": "Tarefas do dia a dia - Imaginarium",
+  "start_url": "./tarefas.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f5f2",
+  "theme_color": "#2f6b4f",
+  "icons": [
+    { "src": "tarefas-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "tarefas-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "tarefas-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

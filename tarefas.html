@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tarefas</title>
+<meta name="theme-color" content="#2f6b4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tarefas">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest-tarefas.json">
+<link rel="apple-touch-icon" href="apple-touch-tarefas.png">
+<link rel="icon" type="image/png" href="tarefas-192.png">
+<style>
+  :root { --bg:#f6f5f2; --panel:#ffffff; --ink:#1f2a24; --muted:#6b7570; --line:#dfe0da; --accent:#2f6b4f; --accent-dark:#234f3a; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; min-height:100dvh; }
+  #tfRaiz { max-width:640px; margin:0 auto; padding:max(8px,env(safe-area-inset-top)) 8px max(24px,env(safe-area-inset-bottom)); }
+  .tf { padding:18px 14px 40px !important; border-radius:14px; }
+  .tf h1 { font-size:1.25rem !important; }
+  .tf .tf-sub0 { display:none; }
+  .tf-item { padding:14px 2px !important; }
+  .tf-circ { flex:0 0 30px !important; width:30px !important; height:30px !important; }
+  .tf-ico, .tf-alca { font-size:1.4rem !important; padding:6px 10px !important; }
+</style>
+</head>
+<body>
+<div id="tfRaiz"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  var SUPABASE_URL = 'https://gqgxekjcmnostlxgfvlg.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_UBuz0ZvBKbFmGR9JCNCwEw_nlo4xIDc';
+  var supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+</script>
+<script>
+/* Imaginarium — Tarefas do dia a dia (fila por setor, tarefas com etapas).
+   Uso: TF.init({ raiz: 'idDoElemento', setorId: 5, admin: true }); depois TF.abrir('fila' | 'acomp' | 'setores' | 'hist').
+   Precisa de: supabaseClient (global). Tabelas: FormTarefa, FormTarefaEtapa, view FormTarefaEtapaVw, FormSetor, FormTurma... */
+(function () {
+  'use strict';
+  var TF = window.TF = {};
+  var C = { raiz: null, setorId: 5, admin: false };
+  var S = { aba: 'fila', setores: [], setorMap: {}, tarefas: {}, etapas: [], turmaRot: {}, turmaIdPorRot: {}, colacoes: [], colRot: {}, base: false, modo: 'simples', maisAberto: false, detalheId: null, edEtapa: null, filtroSetor: '', verParadas: false };
+
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var $ = function (id) { return document.getElementById(id); };
+  var db = function () { return window.supabaseClient || (typeof supabaseClient !== 'undefined' ? supabaseClient : null); };
+
+  var CSS = '\
+.tf{background:var(--panel,#fff);color:var(--ink,#1f2a24);border:1px solid var(--line,#dfe0da);border-radius:14px;padding:36px 32px;min-height:420px;font-family:inherit;position:relative}\
+.tf *{box-sizing:border-box}\
+.tf h1{margin:0 0 6px;font-size:1.4rem;color:var(--ink,#1f2a24)}\
+.tf .tf-sub0{color:#6b7570;font-size:.9rem;margin-bottom:14px}\
+.tf-abas{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 14px}\
+.tf-aba{background:#f6f5f2;color:#1f2a24;border:1px solid #dfe0da;border-radius:20px;padding:6px 14px;font-size:.88rem;cursor:pointer;font-family:inherit}\
+.tf-aba.on{background:#2f6b4f;color:#fff;border-color:#2f6b4f;font-weight:600}\
+.tf-add{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px}\
+.tf-add input[type=text]{flex:1;min-width:180px;background:#ffffff;border:1px solid #dfe0da;color:#1f2a24;border-radius:10px;padding:10px 12px;font-size:1rem;font-family:inherit}\
+.tf-modo{display:flex;border:1px solid #dfe0da;border-radius:10px;overflow:hidden}\
+.tf-modo button{background:#ffffff;color:#6b7570;border:none;padding:9px 12px;font-size:.82rem;cursor:pointer;font-family:inherit}\
+.tf-modo button.on{background:#e4efe9;color:#234f3a;font-weight:600}\
+.tf-btn{background:#2f6b4f;color:#ffffff;border:none;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;font-family:inherit;font-size:.9rem}\
+.tf-btn2{background:#f6f5f2;color:#1f2a24;border:1px solid #dfe0da;border-radius:10px;padding:8px 13px;cursor:pointer;font-family:inherit;font-size:.85rem}\
+.tf-btn2.perigo{color:#b3261e;border-color:#e5b9b3}\
+.tf-lnk{background:none;border:none;color:#2f6b4f;cursor:pointer;font-size:.82rem;padding:2px 0;font-family:inherit;text-decoration:underline}\
+.tf-mais{background:#f6f5f2;border:1px solid #dfe0da;border-radius:10px;padding:10px;margin:6px 0 10px;display:grid;gap:8px}\
+.tf-mais label,.tf-dlg label{font-size:.78rem;color:#6b7570;display:block;margin-bottom:3px}\
+.tf input[type=text],.tf textarea,.tf select,.tf input[type=date],.tf-dlg input[type=text],.tf-dlg textarea,.tf-dlg select{width:100%;background:#ffffff;border:1px solid #dfe0da;color:#1f2a24;border-radius:8px;padding:8px 10px;font-size:.92rem;font-family:inherit}\
+.tf textarea,.tf-dlg textarea{resize:vertical;min-height:62px}\
+.tf-item{display:flex;align-items:center;gap:12px;padding:12px 4px;border-bottom:1px solid #e6e8e3;background:#ffffff}\
+.tf-item.tf-drag{background:#eef4f0;box-shadow:0 4px 16px #0003;position:relative;z-index:3}\
+.tf-item.tf-feito{opacity:.35;transition:opacity .3s}\
+.tf-circ{flex:0 0 26px;width:26px;height:26px;border-radius:50%;border:2px solid #9aa39d;background:none;cursor:pointer;padding:0}\
+.tf-circ:hover{border-color:#2f6b4f;background:#2f6b4f22}\
+.tf-corpo{flex:1;min-width:0;cursor:pointer}\
+.tf-tit{font-size:1.02rem;line-height:1.3}\
+.tf-sub{font-size:.78rem;color:#6b7570;margin-top:2px}\
+.tf-ico{background:none;border:none;color:#6b7570;cursor:pointer;font-size:1.15rem;padding:4px 6px}\
+.tf-ico:hover{color:#2f6b4f}\
+.tf-alca{color:#9aa39d;font-size:1.25rem;cursor:grab;padding:4px 8px;touch-action:none;user-select:none}\
+.tf-vazio{color:#8a928d;padding:22px 4px;font-size:.92rem}\
+.tf-cont{color:#6b7570;font-size:.85rem;margin:2px 0 8px}\
+.tf-h3{margin:20px 0 6px;font-size:.8rem;letter-spacing:.6px;color:#234f3a;text-transform:uppercase;font-weight:600}\
+.tf-chip{display:inline-block;border-radius:10px;padding:1px 9px;font-size:.72rem;background:#e4efe9;color:#234f3a;white-space:nowrap}\
+.tf-chip.ok{background:#dcebe1;color:#1d3d2b}.tf-chip.esp{background:#e6e8e3;color:#6b7570}.tf-chip.atr{background:#f6dedb;color:#8a2f25}\
+.tf-card{background:#f6f5f2;border:1px solid #dfe0da;border-radius:12px;padding:12px 14px;margin-bottom:10px}\
+.tf-barra{height:6px;background:#dfe0da;border-radius:4px;overflow:hidden;margin:8px 0}\
+.tf-barra>i{display:block;height:100%;background:#2f6b4f}\
+.tf-passos{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}\
+.tf-dia{font-size:.78rem;color:#2f6b4f;margin:16px 0 4px}\
+.tf-ov{position:fixed;inset:0;background:#0007;z-index:400;display:none;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}\
+.tf-ov.show{display:flex}\
+.tf-dlg{background:#ffffff;color:#1f2a24;border:1px solid #dfe0da;border-radius:14px;width:min(640px,100%);padding:18px;position:relative}\
+.tf-dlg h2{margin:0 0 4px;color:var(--ink,#1f2a24);font-size:1.25rem;padding-right:28px}\
+.tf-x{position:absolute;right:12px;top:10px;background:none;border:none;color:#6b7570;font-size:1.3rem;cursor:pointer}\
+.tf-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}\
+.tf-et{border:1px solid #dfe0da;border-radius:10px;padding:10px;margin:8px 0;background:#f6f5f2}\
+.tf-et.lib{border-color:#2f6b4f}\
+.tf-et.fim{opacity:.6}\
+.tf-form-et{border:1px dashed #c9cdc7;border-radius:10px;padding:10px;margin:8px 0;display:grid;gap:6px}\
+.tf-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#2f6b4f;color:#ffffff;padding:9px 16px;border-radius:10px;z-index:500;font-weight:600;display:none}\
+.tf-toast.erro{background:#b3261e}\
+@media(max-width:600px){.tf{padding:20px 16px}.tf-row2{grid-template-columns:1fr}.tf-dlg{padding:14px}}';
+
+  // ---------- utilidades ----------
+  function toast(msg, erro) {
+    var t = $('tfToast'); if (!t) return;
+    t.textContent = msg; t.className = 'tf-toast' + (erro ? ' erro' : ''); t.style.display = 'block';
+    clearTimeout(toast._t); toast._t = setTimeout(function () { t.style.display = 'none'; }, erro ? 5000 : 2200);
+  }
+  async function todos(tabela, sel, ord) {
+    var out = [], from = 0;
+    for (;;) {
+      var q = db().from(tabela).select(sel).order(ord || 'id').range(from, from + 999);
+      var r = await q;
+      if (r.error) throw r.error;
+      out = out.concat(r.data || []);
+      if (!r.data || r.data.length < 1000) break;
+      from += 1000;
+    }
+    return out;
+  }
+  function dataBR(iso) { if (!iso) return ''; var p = String(iso).slice(0, 10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function diaLocal(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function horaLocal(ts) { var d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  function dias(ts) { return Math.floor((Date.now() - new Date(ts).getTime()) / 86400000); }
+  function nomeSetor(id) { return S.setorMap[id] || 'Setor ' + id; }
+  function ehDono(t) { return Number(t.IdSetorDono) === Number(C.setorId); }
+
+  // ---------- carga ----------
+  async function carregarBase() {
+    if (S.base) return;
+    var res = await Promise.all([
+      db().from('FormSetor').select('idSetor, NomeSetor').order('idSetor'),
+      todos('FormTurma', 'idTurma, IdFaculdade, IdCurso, IdSemestre, Identificacao, IdColacao', 'idTurma'),
+      db().from('FormFaculdade').select('IdFaculdade, NomeFaculdade'),
+      db().from('FormCurso').select('idCurso, NomeCurso'),
+      db().from('FormSemestre').select('idSemestre, NomeSemestre'),
+      db().from('FormColacao').select('idColacao, DataColacao')
+    ]);
+    S.setores = res[0].data || [];
+    S.setorMap = {}; S.setores.forEach(function (s) { S.setorMap[s.idSetor] = s.NomeSetor; });
+    var fac = {}, cur = {}, sem = {};
+    (res[2].data || []).forEach(function (x) { fac[x.IdFaculdade] = x.NomeFaculdade; });
+    (res[3].data || []).forEach(function (x) { cur[x.idCurso] = x.NomeCurso; });
+    (res[4].data || []).forEach(function (x) { sem[x.idSemestre] = x.NomeSemestre; });
+    S.turmaRot = {}; S.turmaIdPorRot = {};
+    var porCol = {};
+    res[1].forEach(function (t) {
+      var r = [fac[t.IdFaculdade], cur[t.IdCurso] + (t.Identificacao ? ' (' + (String(t.Identificacao).length <= 2 ? 'Turma ' + t.Identificacao : t.Identificacao) + ')' : ''), sem[t.IdSemestre]].filter(Boolean).join(' - ');
+      if (S.turmaIdPorRot[r]) r += ' #' + t.idTurma;
+      S.turmaRot[t.idTurma] = r; S.turmaIdPorRot[r] = t.idTurma;
+      if (t.IdColacao != null) (porCol[t.IdColacao] = porCol[t.IdColacao] || []).push(r);
+    });
+    S.colRot = {};
+    S.colacoes = (res[5].data || []).filter(function (c) { return porCol[c.idColacao]; }).map(function (c) {
+      var l = porCol[c.idColacao], rot = (c.DataColacao ? dataBR(c.DataColacao) : 'sem data') + ' · ' + l.length + ' turma(s) · ' + l.slice(0, 2).join(', ') + (l.length > 2 ? '...' : '');
+      S.colRot[c.idColacao] = rot; return { id: c.idColacao, rot: rot, data: c.DataColacao || '' };
+    }).sort(function (a, b) { return String(b.data).localeCompare(String(a.data)); });
+    S.base = true;
+  }
+  async function carregar() {
+    var r = await Promise.all([todos('FormTarefa', '*', 'id'), todos('FormTarefaEtapaVw', '*', 'id')]);
+    S.tarefas = {}; r[0].forEach(function (t) { S.tarefas[t.id] = t; });
+    S.etapas = r[1];
+  }
+  function etapasDe(idT) { return S.etapas.filter(function (e) { return e.IdTarefa === idT; }).sort(function (a, b) { return a.Ordem - b.Ordem || a.id - b.id; }); }
+  function posMax(setor) {
+    var m = 0; S.etapas.forEach(function (e) { if (Number(e.IdSetor) === Number(setor) && e.Situacao === 'aberta' && Number(e.Posicao) > m) m = Number(e.Posicao); });
+    return m;
+  }
+  function ctxTarefa(e) {
+    var t = S.tarefas[e.IdTarefa]; if (!t) return '';
+    var p = [];
+    if (!t.Simples) { var l = etapasDe(t.id), i = l.findIndex(function (x) { return x.id === e.id; }); p.push(esc(t.Titulo) + ' · etapa ' + (i + 1) + ' de ' + l.length); }
+    if (!ehDono(t)) p.push('de ' + esc(nomeSetor(t.IdSetorDono)));
+    if (t.IdTurma && S.turmaRot[t.IdTurma]) p.push(esc(S.turmaRot[t.IdTurma]));
+    else if (t.IdColacao && S.colRot[t.IdColacao]) p.push('Formatura ' + esc(S.colRot[t.IdColacao].split(' · ')[0]));
+    if (e.Notas) p.push('📝 ' + esc(String(e.Notas).split('\n')[0].slice(0, 60)));
+    return p.join(' · ');
+  }
+
+  // ---------- estrutura ----------
+  TF.init = function (cfg) {
+    C.raiz = cfg.raiz; C.setorId = cfg.setorId; C.admin = !!cfg.admin;
+    if (!$('tfCss')) { var st = document.createElement('style'); st.id = 'tfCss'; st.textContent = CSS; document.head.appendChild(st); }
+    if (!$('tfOv')) {
+      var ov = document.createElement('div'); ov.id = 'tfOv'; ov.className = 'tf-ov';
+      ov.addEventListener('mousedown', function (e) { if (e.target === ov) TF.fechar(); });
+      document.body.appendChild(ov);
+      var tt = document.createElement('div'); tt.id = 'tfToast'; tt.className = 'tf-toast'; document.body.appendChild(tt);
+      var dl = document.createElement('datalist'); dl.id = 'tfTurmaOp'; document.body.appendChild(dl);
+    }
+    $(C.raiz).innerHTML = '<div class="tf" id="tfApp"></div>';
+  };
+
+  TF.abrir = async function (aba) {
+    S.aba = aba || S.aba;
+    if (S.aba === 'setores' && !C.admin) S.aba = 'fila';
+    var app = $('tfApp'); if (!app) return;
+    if (!S.base) app.innerHTML = '<p class="tf-vazio">Carregando...</p>';
+    try { await carregarBase(); await carregar(); }
+    catch (e) { app.innerHTML = '<p class="tf-vazio">Erro ao carregar: ' + esc(e.message || e) + '</p>'; return; }
+    $('tfTurmaOp').innerHTML = Object.keys(S.turmaIdPorRot).sort().map(function (r) { return '<option value="' + esc(r) + '"></option>'; }).join('');
+    render();
+  };
+
+  function render() {
+    var app = $('tfApp'); if (!app) return;
+    var abas = [['fila', 'Minha fila'], ['acomp', 'Acompanhando']];
+    if (C.admin) abas.push(['setores', 'Setores']);
+    abas.push(['hist', 'Histórico']);
+    var h = '<h1>Tarefas — ' + esc(nomeSetor(C.setorId)) + '</h1><div class="tf-sub0">Tarefas do dia a dia. Concluir manda para o histórico; ⤓ manda para o final da fila.</div>';
+    h += '<div class="tf-abas">' + abas.map(function (a) { return '<button type="button" class="tf-aba' + (S.aba === a[0] ? ' on' : '') + '" onclick="TF.abrir(\'' + a[0] + '\')">' + a[1] + '</button>'; }).join('') + '</div>';
+    if (S.aba === 'fila') h += htmlAdd();
+    h += '<div id="tfCorpo">' + (S.aba === 'fila' ? htmlFila() : S.aba === 'acomp' ? htmlAcomp() : S.aba === 'setores' ? htmlSetores() : htmlHist()) + '</div>';
+    app.innerHTML = h;
+  }
+
+  // ---------- adicionar ----------
+  function optSetores(sel) { return S.setores.map(function (s) { return '<option value="' + s.idSetor + '"' + (Number(s.idSetor) === Number(sel) ? ' selected' : '') + '>' + esc(s.NomeSetor) + '</option>'; }).join(''); }
+  function htmlAdd() {
+    var h = '<div class="tf-add"><input type="text" id="tfNovoTit" placeholder="Nova tarefa..." onkeydown="if(event.key===\'Enter\')TF.criar()">' +
+      '<div class="tf-modo"><button type="button" class="' + (S.modo === 'simples' ? 'on' : '') + '" onclick="TF.modo(\'simples\')">Simples</button><button type="button" class="' + (S.modo === 'etapas' ? 'on' : '') + '" onclick="TF.modo(\'etapas\')">Com etapas</button></div>' +
+      '<button type="button" class="tf-btn" onclick="TF.criar()">+ Adicionar</button></div>';
+    if (S.modo === 'simples') {
+      h += '<button type="button" class="tf-lnk" onclick="TF.mais()">' + (S.maisAberto ? '− menos opções' : '+ mais opções (notas, turma, outro setor)') + '</button>';
+      if (S.maisAberto) h += '<div class="tf-mais"><div><label>Notas / orientações</label><textarea id="tfNovoNotas"></textarea></div>' +
+        '<div class="tf-row2"><div><label>Turma (opcional)</label><input type="text" id="tfNovoTurma" list="tfTurmaOp" placeholder="Digite para buscar"></div>' +
+        '<div><label>Formatura (opcional)</label><select id="tfNovoCol"><option value="">—</option>' + S.colacoes.map(function (c) { return '<option value="' + c.id + '">' + esc(c.rot) + '</option>'; }).join('') + '</select></div></div>' +
+        '<div><label>Setor responsável</label><select id="tfNovoSetor">' + optSetores(C.setorId) + '</select></div></div>';
+    }
+    return h;
+  }
+  TF.modo = function (m) { var v = $('tfNovoTit') ? $('tfNovoTit').value : ''; S.modo = m; render(); if ($('tfNovoTit')) { $('tfNovoTit').value = v; $('tfNovoTit').focus(); } };
+  TF.mais = function () { var v = $('tfNovoTit').value; S.maisAberto = !S.maisAberto; render(); $('tfNovoTit').value = v; };
+
+  function turmaDoCampo(idCampo) {
+    var el = $(idCampo); if (!el || !el.value.trim()) return null;
+    var id = S.turmaIdPorRot[el.value.trim()];
+    return id || -1;
+  }
+  TF.criar = async function () {
+    var tit = $('tfNovoTit').value.trim();
+    if (S.modo === 'etapas') { abrirDlgEtapas(tit); return; }
+    if (!tit) { toast('Digite o título da tarefa.', true); $('tfNovoTit').focus(); return; }
+    var notas = $('tfNovoNotas') ? $('tfNovoNotas').value.trim() || null : null;
+    var idTurma = $('tfNovoTurma') ? turmaDoCampo('tfNovoTurma') : null;
+    if (idTurma === -1) { toast('Escolha a turma da lista.', true); return; }
+    var idCol = $('tfNovoCol') && $('tfNovoCol').value ? Number($('tfNovoCol').value) : null;
+    var setor = $('tfNovoSetor') ? Number($('tfNovoSetor').value) : C.setorId;
+    try {
+      var r = await db().from('FormTarefa').insert({ Titulo: tit, Notas: notas, IdSetorDono: C.setorId, IdTurma: idTurma, IdColacao: idCol, Simples: true }).select('id').single();
+      if (r.error) throw r.error;
+      var e = await db().from('FormTarefaEtapa').insert({ IdTarefa: r.data.id, Titulo: tit, Notas: notas, IdSetor: setor, Ordem: 1, JuntoComAnterior: false, Posicao: posMax(setor) + 1, CriadaPorSetor: C.setorId });
+      if (e.error) { await db().from('FormTarefa').delete().eq('id', r.data.id); throw e.error; }
+    } catch (x) { toast('Erro ao criar: ' + (x.message || x), true); return; }
+    S.maisAberto = false;
+    await TF.abrir('fila');
+    if ($('tfNovoTit')) $('tfNovoTit').focus();
+  };
+
+  // ---------- fila ----------
+  function minhasAbertas() { return S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(C.setorId) && e.Situacao === 'aberta'; }); }
+  function htmlFila() {
+    var ab = minhasAbertas();
+    var lib = ab.filter(function (e) { return e.Liberada; }).sort(function (a, b) { return Number(a.Posicao) - Number(b.Posicao) || a.id - b.id; });
+    var esp = ab.filter(function (e) { return !e.Liberada; });
+    var hoje = diaLocal(Date.now());
+    var feitas = S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(C.setorId) && e.Situacao === 'concluida' && e.ConcluidaEm && diaLocal(e.ConcluidaEm) === hoje; }).length;
+    var h = '<div class="tf-cont">' + feitas + ' de ' + (feitas + lib.length) + ' feitas hoje</div>';
+    if (!lib.length) h += '<p class="tf-vazio">Nenhuma tarefa na fila. Digite acima para adicionar.</p>';
+    else h += '<div id="tfFilaLista">' + lib.map(function (e) {
+      return '<div class="tf-item" data-id="' + e.id + '"><button type="button" class="tf-circ" title="Concluir" onclick="TF.concluir(' + e.id + ', this)"></button>' +
+        '<div class="tf-corpo" onclick="TF.detalhe(' + e.IdTarefa + ')"><div class="tf-tit">' + esc(e.Titulo) + '</div><div class="tf-sub">' + ctxTarefa(e) + '</div></div>' +
+        '<button type="button" class="tf-ico" title="Mandar para o final da fila" onclick="TF.final(' + e.id + ')">⤓</button>' +
+        '<span class="tf-alca" title="Arrastar para reordenar" onpointerdown="TF.arrastar(event)">☰</span></div>';
+    }).join('') + '</div>';
+    if (esp.length) h += '<div class="tf-h3">Em breve (' + esp.length + ') — esperando a etapa anterior</div>' + esp.map(function (e) {
+      return '<div class="tf-item"><span class="tf-circ" style="opacity:.3;cursor:default"></span><div class="tf-corpo" onclick="TF.detalhe(' + e.IdTarefa + ')"><div class="tf-tit" style="color:#6b7570">' + esc(e.Titulo) + '</div><div class="tf-sub">' + ctxTarefa(e) + '</div></div></div>';
+    }).join('');
+    return h;
+  }
+  TF.concluir = async function (id, btn) {
+    var item = btn && btn.closest('.tf-item'); if (item) item.classList.add('tf-feito');
+    var r = await db().rpc('tarefa_concluir_etapa', { p_etapa: id });
+    if (r.error) { toast('Erro: ' + r.error.message, true); if (item) item.classList.remove('tf-feito'); return; }
+    await TF.abrir(S.aba); if (S.detalheId) renderDetalhe();
+  };
+  TF.final = async function (id) {
+    var r = await db().from('FormTarefaEtapa').update({ Posicao: posMax(C.setorId) + 1 }).eq('id', id);
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    await TF.abrir('fila');
+  };
+  TF.arrastar = function (ev) {
+    ev.preventDefault();
+    var alca = ev.target, lista = $('tfFilaLista'), item = alca.closest('.tf-item');
+    if (!lista || !item) return;
+    item.classList.add('tf-drag');
+    function mover(e) {
+      var outros = Array.prototype.slice.call(lista.querySelectorAll('.tf-item:not(.tf-drag)')), ref = null;
+      for (var i = 0; i < outros.length; i++) { var r = outros[i].getBoundingClientRect(); if (e.clientY < r.top + r.height / 2) { ref = outros[i]; break; } }
+      if (ref) lista.insertBefore(item, ref); else lista.appendChild(item);
+      if (e.clientY > window.innerHeight - 60) window.scrollBy(0, 12); else if (e.clientY < 60) window.scrollBy(0, -12);
+    }
+    async function fim() {
+      document.removeEventListener('pointermove', mover); document.removeEventListener('pointerup', fim); document.removeEventListener('pointercancel', fim);
+      item.classList.remove('tf-drag');
+      var ids = Array.prototype.slice.call(lista.querySelectorAll('.tf-item')).map(function (x) { return Number(x.dataset.id); });
+      var upd = [];
+      ids.forEach(function (id, i) { var e = S.etapas.find(function (x) { return x.id === id; }); if (e && Number(e.Posicao) !== i + 1) { e.Posicao = i + 1; upd.push(db().from('FormTarefaEtapa').update({ Posicao: i + 1 }).eq('id', id)); } });
+      var rs = await Promise.all(upd);
+      if (rs.some(function (r) { return r.error; })) toast('Não foi possível salvar a nova ordem.', true);
+    }
+    document.addEventListener('pointermove', mover); document.addEventListener('pointerup', fim); document.addEventListener('pointercancel', fim);
+  };
+
+  // ---------- acompanhando ----------
+  function maesAcomp(acomp) {
+    return Object.keys(S.tarefas).map(function (k) { return S.tarefas[k]; }).filter(function (t) {
+      if (!ehDono(t) || t.Situacao !== 'aberta' || !!t.Acompanhando !== acomp) return false;
+      return etapasDe(t.id).some(function (e) { return Number(e.IdSetor) !== Number(C.setorId); });
+    }).sort(function (a, b) { return String(b.created_at).localeCompare(String(a.created_at)); });
+  }
+  function cardMae(t, comBotao) {
+    var l = etapasDe(t.id), feitas = l.filter(function (e) { return e.Situacao === 'concluida'; }).length;
+    var loc = t.IdTurma && S.turmaRot[t.IdTurma] ? S.turmaRot[t.IdTurma] : (t.IdColacao && S.colRot[t.IdColacao] ? 'Formatura ' + S.colRot[t.IdColacao].split(' · ')[0] : '');
+    return '<div class="tf-card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div style="cursor:pointer" onclick="TF.detalhe(' + t.id + ')"><div class="tf-tit"><b>' + esc(t.Titulo) + '</b></div><div class="tf-sub">' + feitas + ' de ' + l.length + ' etapas' + (loc ? ' · ' + esc(loc) : '') + ' · criada há ' + dias(t.created_at) + 'd</div></div>' +
+      comBotao + '</div><div class="tf-barra"><i style="width:' + (l.length ? Math.round(feitas * 100 / l.length) : 0) + '%"></i></div><div class="tf-passos">' +
+      l.map(function (e) { var c = e.Situacao === 'concluida' ? 'ok' : (e.Liberada ? '' : 'esp'); return '<span class="tf-chip ' + c + '" title="' + esc(e.Titulo) + '">' + (e.Situacao === 'concluida' ? '✓ ' : '') + esc(nomeSetor(e.IdSetor)) + ': ' + esc(e.Titulo.length > 28 ? e.Titulo.slice(0, 28) + '…' : e.Titulo) + '</span>'; }).join('') + '</div></div>';
+  }
+  function htmlAcomp() {
+    var a = maesAcomp(true), p = maesAcomp(false);
+    var h = '<p class="tf-cont">Tarefas que você criou e que têm etapas em outros setores.</p>';
+    h += a.length ? a.map(function (t) { return cardMae(t, '<button type="button" class="tf-lnk" onclick="TF.acompanhar(' + t.id + ', false)">Parar de acompanhar</button>'); }).join('') : '<p class="tf-vazio">Nada sendo acompanhado agora.</p>';
+    if (p.length) {
+      h += '<button type="button" class="tf-lnk" onclick="TF.paradas()">' + (S.verParadas ? 'Esconder' : 'Mostrar') + ' tarefas que parei de acompanhar (' + p.length + ')</button>';
+      if (S.verParadas) h += p.map(function (t) { return cardMae(t, '<button type="button" class="tf-lnk" onclick="TF.acompanhar(' + t.id + ', true)">Voltar a acompanhar</button>'); }).join('');
+    }
+    return h;
+  }
+  TF.paradas = function () { S.verParadas = !S.verParadas; render(); };
+  TF.acompanhar = async function (id, v) {
+    var r = await db().from('FormTarefa').update({ Acompanhando: v }).eq('id', id);
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    await TF.abrir(S.aba); if (S.detalheId) renderDetalhe();
+  };
+
+  // ---------- setores (visão geral) ----------
+  function htmlSetores() {
+    var h = '<div class="tf-row2" style="margin-bottom:8px"><div><label style="color:#6b7570;font-size:.78rem">Setor</label><select onchange="TF.filtroSetor(this.value)"><option value="">Todos</option>' + optSetores(S.filtroSetor) + '</select></div></div>';
+    var lista = S.setores.filter(function (s) { return !S.filtroSetor || String(s.idSetor) === String(S.filtroSetor); });
+    lista.forEach(function (s) {
+      var ab = S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(s.idSetor) && e.Situacao === 'aberta'; });
+      var lib = ab.filter(function (e) { return e.Liberada; }).sort(function (a, b) { return Number(a.Posicao) - Number(b.Posicao) || a.id - b.id; });
+      var esp = ab.filter(function (e) { return !e.Liberada; });
+      h += '<div class="tf-h3">' + esc(s.NomeSetor) + ' — ' + lib.length + ' na fila' + (esp.length ? ', ' + esp.length + ' em breve' : '') + '</div>';
+      if (!ab.length) { h += '<div class="tf-vazio" style="padding:6px 4px">Sem tarefas abertas.</div>'; return; }
+      h += lib.concat(esp).map(function (e) {
+        var d = dias(e.created_at), cls = d >= 3 && e.Liberada ? 'atr' : (e.Liberada ? '' : 'esp');
+        return '<div class="tf-item"><div class="tf-corpo" onclick="TF.detalhe(' + e.IdTarefa + ')"><div class="tf-tit"' + (e.Liberada ? '' : ' style="color:#6b7570"') + '>' + esc(e.Titulo) + '</div><div class="tf-sub">' + ctxTarefa(e).replace(/^/, '') + '</div></div><span class="tf-chip ' + cls + '">' + (e.Liberada ? (d === 0 ? 'hoje' : d + 'd aberta') : 'aguardando') + '</span></div>';
+      }).join('');
+    });
+    return h;
+  }
+  TF.filtroSetor = function (v) { S.filtroSetor = v; render(); };
+
+  // ---------- histórico ----------
+  function htmlHist() {
+    var meus = S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(C.setorId) && e.Situacao === 'concluida' && e.ConcluidaEm; })
+      .sort(function (a, b) { return String(b.ConcluidaEm).localeCompare(String(a.ConcluidaEm)); }).slice(0, 300);
+    var h = '';
+    if (!meus.length) h += '<p class="tf-vazio">Nada concluído ainda.</p>';
+    var dia = '';
+    meus.forEach(function (e) {
+      var d = diaLocal(e.ConcluidaEm);
+      if (d !== dia) { dia = d; h += '<div class="tf-dia">' + dataBR(d) + '</div>'; }
+      h += '<div class="tf-item"><span class="tf-circ" style="background:#2f6b4f;border-color:#2f6b4f;opacity:.55;cursor:default"></span><div class="tf-corpo" onclick="TF.detalhe(' + e.IdTarefa + ')"><div class="tf-tit" style="color:#6b7570;text-decoration:line-through">' + esc(e.Titulo) + '</div><div class="tf-sub">' + horaLocal(e.ConcluidaEm) + ' · ' + ctxTarefa(e) + '</div></div><button type="button" class="tf-lnk" onclick="TF.reabrir(' + e.id + ')">voltar para a fila</button></div>';
+    });
+    var maes = Object.keys(S.tarefas).map(function (k) { return S.tarefas[k]; }).filter(function (t) {
+      return ehDono(t) && t.Situacao === 'concluida' && etapasDe(t.id).some(function (e) { return Number(e.IdSetor) !== Number(C.setorId); });
+    }).sort(function (a, b) { return String(b.ConcluidaEm).localeCompare(String(a.ConcluidaEm)); }).slice(0, 100);
+    if (maes.length) h += '<div class="tf-h3">Tarefas que acompanhei e foram concluídas</div>' + maes.map(function (t) {
+      return '<div class="tf-item"><div class="tf-corpo" onclick="TF.detalhe(' + t.id + ')"><div class="tf-tit">' + esc(t.Titulo) + '</div><div class="tf-sub">concluída em ' + dataBR(diaLocal(t.ConcluidaEm)) + ' · ' + etapasDe(t.id).length + ' etapa(s)</div></div></div>';
+    }).join('');
+    return h;
+  }
+  TF.reabrir = async function (id) {
+    var r = await db().rpc('tarefa_reabrir_etapa', { p_etapa: id });
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    toast('Voltou para o final da fila.');
+    await TF.abrir(S.aba); if (S.detalheId) renderDetalhe();
+  };
+
+  // ---------- janela ----------
+  TF.fechar = function () { $('tfOv').classList.remove('show'); S.detalheId = null; S.edEtapa = null; };
+  function abrirOv(html) { $('tfOv').innerHTML = '<div class="tf-dlg"><button type="button" class="tf-x" onclick="TF.fechar()">✕</button>' + html + '</div>'; $('tfOv').classList.add('show'); }
+
+  // tarefa com etapas: criação
+  var EL = [];
+  function abrirDlgEtapas(tit) {
+    S.detalheId = null;
+    EL = [{ tit: '', setor: C.setorId, notas: '', junto: false }];
+    abrirOv('<h2>Nova tarefa com etapas</h2><p class="tf-sub0" style="color:#6b7570;font-size:.85rem;margin:0 0 10px">Cada etapa vai para a fila do setor responsável quando chegar a vez dela.</p>' +
+      '<div><label>Título da tarefa</label><input type="text" id="tfDlgTit"></div>' +
+      '<div style="margin-top:8px"><label>Notas / orientações</label><textarea id="tfDlgNotas"></textarea></div>' +
+      '<div class="tf-row2" style="margin-top:8px"><div><label>Turma (opcional)</label><input type="text" id="tfDlgTurma" list="tfTurmaOp" placeholder="Digite para buscar"></div>' +
+      '<div><label>Formatura (opcional)</label><select id="tfDlgCol"><option value="">—</option>' + S.colacoes.map(function (c) { return '<option value="' + c.id + '">' + esc(c.rot) + '</option>'; }).join('') + '</select></div></div>' +
+      '<div class="tf-h3">Etapas</div><div id="tfDlgEtapas"></div>' +
+      '<button type="button" class="tf-btn2" onclick="TF.elAdd()">+ etapa</button>' +
+      '<div style="display:flex;gap:8px;margin-top:16px"><button type="button" class="tf-btn" onclick="TF.elSalvar()">Criar tarefa</button><button type="button" class="tf-btn2" onclick="TF.fechar()">Cancelar</button></div>');
+    $('tfDlgTit').value = tit || '';
+    elRender();
+    $('tfDlgTit').focus();
+  }
+  function elLer() {
+    document.querySelectorAll('#tfDlgEtapas .tf-form-et').forEach(function (b, i) {
+      if (!EL[i]) return;
+      EL[i].tit = b.querySelector('.f-tit').value; EL[i].setor = Number(b.querySelector('.f-setor').value); EL[i].notas = b.querySelector('.f-notas').value;
+      var j = b.querySelector('.f-junto'); EL[i].junto = j ? j.checked : false;
+    });
+  }
+  function elRender() {
+    $('tfDlgEtapas').innerHTML = EL.map(function (e, i) {
+      return '<div class="tf-form-et"><div style="display:flex;justify-content:space-between"><b style="color:#2f6b4f;font-size:.85rem">Etapa ' + (i + 1) + '</b>' + (EL.length > 1 ? '<button type="button" class="tf-lnk" onclick="TF.elDel(' + i + ')">remover</button>' : '') + '</div>' +
+        '<input type="text" class="f-tit" placeholder="O que precisa ser feito" value="' + esc(e.tit) + '">' +
+        '<div class="tf-row2"><select class="f-setor">' + optSetores(e.setor) + '</select><input type="text" class="f-notas" placeholder="Notas (opcional)" value="' + esc(e.notas) + '"></div>' +
+        (i > 0 ? '<label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" class="f-junto" style="width:auto"' + (e.junto ? ' checked' : '') + '> começa junto com a etapa anterior (senão, espera ela terminar)</label>' : '') + '</div>';
+    }).join('');
+  }
+  TF.elAdd = function () { elLer(); EL.push({ tit: '', setor: C.setorId, notas: '', junto: false }); elRender(); };
+  TF.elDel = function (i) { elLer(); EL.splice(i, 1); elRender(); };
+  TF.elSalvar = async function () {
+    elLer();
+    var tit = $('tfDlgTit').value.trim();
+    if (!tit) { toast('Informe o título da tarefa.', true); return; }
+    if (EL.some(function (e) { return !e.tit.trim(); })) { toast('Preencha o título de todas as etapas.', true); return; }
+    var idTurma = turmaDoCampo('tfDlgTurma'); if (idTurma === -1) { toast('Escolha a turma da lista.', true); return; }
+    var idCol = $('tfDlgCol').value ? Number($('tfDlgCol').value) : null;
+    try {
+      var r = await db().from('FormTarefa').insert({ Titulo: tit, Notas: $('tfDlgNotas').value.trim() || null, IdSetorDono: C.setorId, IdTurma: idTurma, IdColacao: idCol, Simples: false }).select('id').single();
+      if (r.error) throw r.error;
+      var cont = {};
+      var linhas = EL.map(function (e, i) {
+        cont[e.setor] = (cont[e.setor] || posMax(e.setor)) + 1;
+        return { IdTarefa: r.data.id, Titulo: e.tit.trim(), Notas: e.notas.trim() || null, IdSetor: e.setor, Ordem: i + 1, JuntoComAnterior: i > 0 && !!e.junto, Posicao: cont[e.setor], CriadaPorSetor: C.setorId };
+      });
+      var er = await db().from('FormTarefaEtapa').insert(linhas);
+      if (er.error) { await db().from('FormTarefa').delete().eq('id', r.data.id); throw er.error; }
+    } catch (x) { toast('Erro ao criar: ' + (x.message || x), true); return; }
+    TF.fechar(); S.modo = 'simples';
+    toast('Tarefa criada.');
+    await TF.abrir('fila');
+  };
+
+  // detalhe da tarefa-mãe
+  TF.detalhe = function (idT) { S.detalheId = idT; S.edEtapa = null; renderDetalhe(); };
+  function renderDetalhe() {
+    var t = S.tarefas[S.detalheId]; if (!t) { TF.fechar(); return; }
+    var dono = ehDono(t), l = etapasDe(t.id);
+    var loc = t.IdTurma && S.turmaRot[t.IdTurma] ? S.turmaRot[t.IdTurma] : (t.IdColacao && S.colRot[t.IdColacao] ? 'Formatura ' + S.colRot[t.IdColacao] : '');
+    var h = '<h2>' + esc(t.Titulo) + '</h2><div class="tf-sub" style="color:#6b7570;font-size:.82rem;margin-bottom:8px">Criada por ' + esc(nomeSetor(t.IdSetorDono)) + ' em ' + dataBR(diaLocal(t.created_at)) + (loc ? ' · ' + esc(loc) : '') + ' · <span class="tf-chip ' + (t.Situacao === 'concluida' ? 'ok' : '') + '">' + (t.Situacao === 'concluida' ? 'concluída' : 'aberta') + '</span></div>';
+    h += '<div><label>Notas / orientações</label>' + (dono ? '<textarea id="tfMaeNotas">' + esc(t.Notas || '') + '</textarea><div style="margin-top:6px"><button type="button" class="tf-btn2" onclick="TF.salvarNotasMae()">Salvar notas</button></div>' : '<div style="white-space:pre-wrap;background:#f6f5f2;border-radius:8px;padding:8px 10px;font-size:.9rem">' + (t.Notas ? esc(t.Notas) : '<span style="color:#8a928d">Sem notas.</span>') + '</div>') + '</div>';
+    h += '<div class="tf-h3">Etapas</div>';
+    h += l.map(function (e, i) {
+      var pode = e.Situacao === 'aberta' && e.Liberada && (C.admin || Number(e.IdSetor) === Number(C.setorId) || dono);
+      var podeEd = dono || Number(e.IdSetor) === Number(C.setorId);
+      var st = e.Situacao === 'concluida' ? '<span class="tf-chip ok">✓ concluída ' + dataBR(diaLocal(e.ConcluidaEm)) + '</span>' : (e.Liberada ? '<span class="tf-chip">na fila de ' + esc(nomeSetor(e.IdSetor)) + '</span>' : '<span class="tf-chip esp">aguardando etapa anterior</span>');
+      if (S.edEtapa === e.id) return '<div class="tf-et"><input type="text" id="tfEdTit" value="' + esc(e.Titulo) + '"><div style="margin-top:6px"><textarea id="tfEdNotas">' + esc(e.Notas || '') + '</textarea></div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="tf-btn2" onclick="TF.salvarEtapa(' + e.id + ')">Salvar</button><button type="button" class="tf-btn2" onclick="TF.editarEtapa(null)">Cancelar</button></div></div>';
+      return '<div class="tf-et' + (e.Liberada && e.Situacao === 'aberta' ? ' lib' : '') + (e.Situacao === 'concluida' ? ' fim' : '') + '"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><b>' + (i + 1) + '. ' + esc(e.Titulo) + '</b><div style="margin-top:3px">' + st + (i > 0 && e.JuntoComAnterior ? ' <span class="tf-chip esp">junto com a anterior</span>' : '') + '</div></div></div>' +
+        (e.Notas ? '<div style="white-space:pre-wrap;font-size:.85rem;color:#4a544f;margin-top:6px">' + esc(e.Notas) + '</div>' : '') +
+        '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">' +
+        (pode ? '<button type="button" class="tf-btn2" onclick="TF.concluir(' + e.id + ')">Concluir etapa</button>' : '') +
+        (e.Situacao === 'concluida' && (C.admin || Number(e.IdSetor) === Number(C.setorId) || dono) ? '<button type="button" class="tf-lnk" onclick="TF.reabrir(' + e.id + ')">voltar para a fila</button>' : '') +
+        (podeEd ? '<button type="button" class="tf-lnk" onclick="TF.editarEtapa(' + e.id + ')">editar</button>' : '') +
+        (dono ? '<button type="button" class="tf-lnk" style="color:#b3261e" onclick="TF.excluirEtapa(' + e.id + ')">excluir etapa</button>' : '') + '</div></div>';
+    }).join('');
+    h += '<div class="tf-h3">Pedir uma etapa</div><div class="tf-form-et"><input type="text" id="tfNeTit" placeholder="O que precisa ser feito"><div class="tf-row2"><select id="tfNeSetor">' + optSetores(C.setorId) + '</select><input type="text" id="tfNeNotas" placeholder="Notas (opcional)"></div>' +
+      '<label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="tfNeJunto" style="width:auto"> começa junto com a última etapa (senão, espera ela terminar)</label>' +
+      '<div><button type="button" class="tf-btn2" onclick="TF.addEtapa()">Adicionar etapa</button></div></div>';
+    if (dono) {
+      h += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;border-top:1px solid #dfe0da;padding-top:12px">' +
+        '<button type="button" class="tf-btn2" onclick="TF.acompanhar(' + t.id + ', ' + (t.Acompanhando ? 'false' : 'true') + ')">' + (t.Acompanhando ? 'Parar de acompanhar' : 'Voltar a acompanhar') + '</button>' +
+        '<button type="button" class="tf-btn2 perigo" onclick="TF.excluirTarefa()">Excluir tarefa</button></div>';
+    } else h += '<p class="tf-sub" style="color:#8a928d;margin-top:14px">Somente ' + esc(nomeSetor(t.IdSetorDono)) + ' (quem criou) pode excluir esta tarefa.</p>';
+    abrirOv(h);
+  }
+  TF.salvarNotasMae = async function () {
+    var r = await db().from('FormTarefa').update({ Notas: $('tfMaeNotas').value.trim() || null }).eq('id', S.detalheId);
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    toast('Notas salvas.'); await carregar(); render();
+  };
+  TF.editarEtapa = function (id) { S.edEtapa = id; renderDetalhe(); };
+  TF.salvarEtapa = async function (id) {
+    var tit = $('tfEdTit').value.trim(); if (!tit) { toast('O título não pode ficar vazio.', true); return; }
+    var r = await db().from('FormTarefaEtapa').update({ Titulo: tit, Notas: $('tfEdNotas').value.trim() || null }).eq('id', id);
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    S.edEtapa = null; await carregar(); renderDetalhe(); render();
+  };
+  TF.addEtapa = async function () {
+    var tit = $('tfNeTit').value.trim(); if (!tit) { toast('Informe o que precisa ser feito.', true); return; }
+    var setor = Number($('tfNeSetor').value), l = etapasDe(S.detalheId);
+    var ordem = l.length ? Math.max.apply(null, l.map(function (e) { return e.Ordem; })) + 1 : 1;
+    var r = await db().from('FormTarefaEtapa').insert({ IdTarefa: S.detalheId, Titulo: tit, Notas: $('tfNeNotas').value.trim() || null, IdSetor: setor, Ordem: ordem, JuntoComAnterior: l.length > 0 && $('tfNeJunto').checked, Posicao: posMax(setor) + 1, CriadaPorSetor: C.setorId });
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    // se a tarefa estava concluída, volta a ficar aberta
+    var t = S.tarefas[S.detalheId], up = {};
+    if (t && t.Simples) up.Simples = false;
+    if (t && t.Situacao === 'concluida') { up.Situacao = 'aberta'; up.ConcluidaEm = null; }
+    if (t && Object.keys(up).length) await db().from('FormTarefa').update(up).eq('id', t.id);
+    toast('Etapa adicionada.'); await carregar(); renderDetalhe(); render();
+  };
+  TF.excluirEtapa = async function (id) {
+    if (!confirm('Excluir esta etapa?')) return;
+    var r = await db().from('FormTarefaEtapa').delete().eq('id', id);
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    await db().rpc('tarefa_verificar', { p_tarefa: S.detalheId });
+    await carregar(); renderDetalhe(); render();
+  };
+  TF.excluirTarefa = async function () {
+    if (!confirm('Excluir esta tarefa e todas as suas etapas? Isso não pode ser desfeito.')) return;
+    var id = S.detalheId;
+    var a = await db().from('FormTarefaEtapa').delete().eq('IdTarefa', id);
+    if (a.error) { toast('Erro: ' + a.error.message, true); return; }
+    var b = await db().from('FormTarefa').delete().eq('id', id);
+    if (b.error) { toast('Erro: ' + b.error.message, true); return; }
+    TF.fechar(); await TF.abrir(S.aba);
+  };
+})();
+
+</script>
+<script>
+  // Setor Geral (id 5) = você. A página só mostra a sua fila, com acompanhamento e visão dos setores.
+  TF.init({ raiz: 'tfRaiz', setorId: 5, admin: true });
+  TF.abrir('fila');
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    navigator.serviceWorker.register('sw.js').catch(function () {});
+  }
+</script>
+</body>
+</html>
