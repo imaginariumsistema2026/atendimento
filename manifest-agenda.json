@@ -1,0 +1,16 @@
+{
+  "name": "Agenda Imaginarium",
+  "short_name": "Agenda",
+  "description": "Agenda de reuniões - Imaginarium",
+  "start_url": "./agenda.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f5f2",
+  "theme_color": "#2f6b4f",
+  "icons": [
+    { "src": "agenda-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "agenda-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "agenda-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

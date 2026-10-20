@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agenda</title>
+<meta name="theme-color" content="#2f6b4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Agenda">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest-agenda.json">
+<link rel="apple-touch-icon" href="apple-touch-agenda.png">
+<link rel="icon" type="image/png" href="agenda-192.png">
+<style>
+  :root { --bg:#f6f5f2; --panel:#ffffff; --ink:#1f2a24; --muted:#6b7570; --line:#dfe0da; --accent:#2f6b4f; --accent-dark:#234f3a; --erro:#b3261e; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; min-height:100dvh; font-size:16px; line-height:1.35; }
+  #app { max-width:640px; margin:0 auto; padding:max(12px,env(safe-area-inset-top)) 12px 110px; }
+  h1 { font-size:1.35rem; margin:6px 2px 10px; }
+  .abas { display:flex; gap:6px; margin-bottom:12px; }
+  .aba { flex:1; border:1px solid var(--line); background:var(--panel); border-radius:20px; padding:9px 6px; font-size:.92rem; font-family:inherit; color:var(--ink); }
+  .aba.on { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  .dia { font-size:.8rem; color:var(--accent-dark); font-weight:700; margin:16px 4px 6px; text-transform:uppercase; letter-spacing:.4px; }
+  .card { display:flex; gap:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:8px; }
+  .card.canc { opacity:.55; }
+  .hora { flex:0 0 52px; font-weight:700; color:var(--accent-dark); font-size:1.02rem; }
+  .corpo { flex:1; min-width:0; }
+  .tit { font-weight:600; }
+  .sub { font-size:.82rem; color:var(--muted); margin-top:2px; overflow-wrap:anywhere; }
+  .chip { display:inline-block; border-radius:10px; padding:1px 9px; font-size:.74rem; background:#dcebe1; color:#1d3d2b; white-space:nowrap; margin-top:4px; }
+  .chip.realizada { background:#e6e8e6; color:#555; } .chip.cancelada { background:#f6dedb; color:#8a2f25; } .chip.adiada { background:#f7ecc9; color:#6b4f0a; }
+  .vazio { color:var(--muted); text-align:center; padding:32px 8px; }
+  .fab { position:fixed; right:max(18px,env(safe-area-inset-right)); bottom:max(22px,env(safe-area-inset-bottom)); width:60px; height:60px; border-radius:50%; background:var(--accent); color:#fff; border:none; font-size:2rem; box-shadow:0 4px 14px #0004; cursor:pointer; z-index:20; }
+  .sheet { position:fixed; inset:0; background:#0007; z-index:100; display:none; align-items:flex-end; justify-content:center; }
+  .sheet.show { display:flex; }
+  .painel { background:var(--panel); width:min(640px,100%); max-height:94vh; max-height:94dvh; overflow:auto; border-radius:18px 18px 0 0; padding:18px 16px max(24px,env(safe-area-inset-bottom)); position:relative; }
+  .painel h2 { margin:0 28px 4px 0; font-size:1.2rem; }
+  .x { position:absolute; right:10px; top:8px; background:none; border:none; font-size:1.5rem; color:var(--muted); padding:8px; }
+  label { display:block; font-size:.82rem; font-weight:600; color:var(--accent-dark); margin:12px 0 4px; }
+  input[type=text], input[type=date], input[type=time], input[type=number], select, textarea { width:100%; padding:12px; border:1px solid var(--line); border-radius:10px; font-size:1rem; font-family:inherit; background:#fff; color:var(--ink); }
+  textarea { resize:vertical; min-height:70px; }
+  .l2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; } .l3 { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:8px; }
+  .btn { background:var(--accent); color:#fff; border:none; border-radius:10px; padding:13px 16px; font-size:1rem; font-weight:700; font-family:inherit; cursor:pointer; }
+  .btn2 { background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:12px 14px; font-size:.95rem; font-family:inherit; cursor:pointer; }
+  .btn2.perigo { color:var(--erro); border-color:#e5b9b3; }
+  .acoes { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+  .sec { border-top:1px solid var(--line); margin-top:16px; padding-top:6px; }
+  .sec h3 { margin:10px 0 2px; font-size:.95rem; }
+  .tchip { display:inline-flex; align-items:center; gap:6px; background:#e4efe9; color:var(--accent-dark); border-radius:16px; padding:6px 10px; margin:3px 4px 3px 0; font-size:.88rem; }
+  .tchip button { background:none; border:none; font-size:1.1rem; color:var(--accent-dark); padding:0 2px; }
+  .pp { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #edf0ee; font-size:.95rem; }
+  .pp input { width:22px; height:22px; flex:0 0 22px; margin:0; }
+  .pp small { color:var(--muted); }
+  .tt { font-size:.82rem; font-weight:700; color:#444; margin:12px 0 2px; }
+  .hint { color:var(--muted); font-size:.82rem; margin:2px 0; }
+  .toast { position:fixed; left:50%; bottom:100px; transform:translateX(-50%); background:var(--accent); color:#fff; padding:10px 16px; border-radius:10px; z-index:300; font-weight:600; display:none; max-width:90%; text-align:center; }
+  .toast.erro { background:var(--erro); }
+  .barra-salvar { position:sticky; bottom:-24px; background:linear-gradient(transparent, #fff 25%); padding-top:14px; margin-top:10px; }
+  .kv { margin:8px 0; font-size:.95rem; } .kv b { color:var(--accent-dark); }
+</style>
+</head>
+<body>
+<div id="app">
+  <h1>Agenda</h1>
+  <div class="abas" id="abas"></div>
+  <div id="lista"><p class="vazio">Carregando...</p></div>
+</div>
+<button class="fab" type="button" onclick="abrirForm(null)" aria-label="Nova agenda">+</button>
+
+<div class="sheet" id="shDet" onclick="if(event.target===this)fecharDet()"><div class="painel" id="detCorpo"></div></div>
+<div class="sheet" id="shForm" onclick="if(event.target===this)fecharForm()"><div class="painel" id="formCorpo"></div></div>
+<datalist id="turmaOp"></datalist>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var SUPABASE_URL = 'https://gqgxekjcmnostlxgfvlg.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_UBuz0ZvBKbFmGR9JCNCwEw_nlo4xIDc';
+  var WEBHOOK = 'https://vitorcs1979.app.n8n.cloud/webhook/agenda-google';
+  var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var SIT = { agendada: 'Agendada', realizada: 'Realizada', cancelada: 'Cancelada', adiada: 'Adiada' };
+  var DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  var A = { turmas: {}, lista: [], rotPorId: {}, tipos: [], equipe: [], itens: [], turmasDa: {}, aba: 'hoje', form: null, det: null, formandos: {} };
+
+  function toast(m, erro) { var t = $('toast'); t.textContent = m; t.className = 'toast' + (erro ? ' erro' : ''); t.style.display = 'block'; clearTimeout(toast._t); toast._t = setTimeout(function () { t.style.display = 'none'; }, erro ? 5000 : 2200); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function iso(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function hojeISO() { return iso(new Date()); }
+  function addDias(i, n) { var d = new Date(i + 'T00:00:00'); d.setDate(d.getDate() + n); return iso(d); }
+  function br(i) { var p = String(i).slice(0, 10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function hh(h) { return h ? String(h).slice(0, 5) : ''; }
+  function diaSemana(i) { return DIAS[new Date(i + 'T00:00:00').getDay()]; }
+  function nome(s) { return String(s || '').toLowerCase().replace(/(^|\s)(\S)/g, function (m, a, b) { return a + b.toUpperCase(); }).replace(/\b(Da|De|Do|Das|Dos|E)\b/g, function (x) { return x.toLowerCase(); }); }
+  function ping() { try { fetch(WEBHOOK, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain' }, body: '{}' }).catch(function () {}); } catch (e) {} }
+  async function todos(tabela, sel, ord) {
+    var out = [], from = 0;
+    for (;;) {
+      var r = await db.from(tabela).select(sel).order(ord).range(from, from + 999);
+      if (r.error) throw r.error;
+      out = out.concat(r.data || []);
+      if (!r.data || r.data.length < 1000) break;
+      from += 1000;
+    }
+    return out;
+  }
+
+  // ---------- base ----------
+  async function carregarBase() {
+    var r = await Promise.all([
+      todos('FormTurma', 'idTurma, IdFaculdade, IdCurso, IdTurno, IdSemestre, Identificacao', 'idTurma'),
+      db.from('FormFaculdade').select('IdFaculdade, NomeFaculdade'), db.from('FormCurso').select('idCurso, NomeCurso'),
+      db.from('FormTurno').select('idturno, NomeTurno'), db.from('FormSemestre').select('idSemestre, NomeSemestre'),
+      db.from('FormTipoAgenda').select('*').eq('Ativo', true).order('idTipoAgenda'),
+      db.from('FormEquipe').select('*').eq('Ativo', true).order('idEquipe')
+    ]);
+    var fac = {}, cur = {}, tur = {}, sem = {};
+    (r[1].data || []).forEach(function (x) { fac[x.IdFaculdade] = x.NomeFaculdade; });
+    (r[2].data || []).forEach(function (x) { cur[x.idCurso] = x.NomeCurso; });
+    (r[3].data || []).forEach(function (x) { tur[x.idturno] = x.NomeTurno; });
+    (r[4].data || []).forEach(function (x) { sem[x.idSemestre] = x.NomeSemestre; });
+    A.turmas = {}; A.rotPorId = {};
+    r[0].forEach(function (t) {
+      var c = (cur[t.IdCurso] || '—'), id = t.Identificacao ? String(t.Identificacao).trim() : '';
+      if (id) c += ' (' + (id.length <= 2 ? 'Turma ' + id : id) + ')';
+      var o = { id: t.idTurma, rotulo: (fac[t.IdFaculdade] || '—') + ' - ' + c + ' - ' + (tur[t.IdTurno] || '—') + ' - ' + (sem[t.IdSemestre] || '—'), curto: (fac[t.IdFaculdade] || '—') + ' ' + c + ' ' + (sem[t.IdSemestre] || '—') };
+      A.turmas[t.idTurma] = o;
+    });
+    A.lista = Object.keys(A.turmas).map(function (k) { return A.turmas[k]; }).sort(function (a, b) { return a.rotulo.localeCompare(b.rotulo); });
+    A.lista.forEach(function (t) { A.rotPorId[t.rotulo] = t.id; });
+    A.tipos = r[5].data || []; A.equipe = r[6].data || [];
+    $('turmaOp').innerHTML = A.lista.map(function (t) { return '<option value="' + esc(t.rotulo) + '"></option>'; }).join('');
+  }
+
+  // ---------- lista ----------
+  async function carregarLista() {
+    var de = addDias(hojeISO(), -45);
+    var r = await db.from('FormAgenda').select('*').gte('DataAgenda', de).order('DataAgenda').order('HoraInicio');
+    if (r.error) throw r.error;
+    A.itens = r.data || []; A.turmasDa = {};
+    if (A.itens.length) {
+      var t = await db.from('FormAgendaTurma').select('IdAgenda, IdTurma').in('IdAgenda', A.itens.map(function (i) { return i.idAgenda; }));
+      (t.data || []).forEach(function (x) { (A.turmasDa[x.IdAgenda] = A.turmasDa[x.IdAgenda] || []).push(x.IdTurma); });
+    }
+  }
+  function turmasTxt(id) { return (A.turmasDa[id] || []).map(function (t) { return A.turmas[t] ? A.turmas[t].curto : ''; }).filter(Boolean).join(' | '); }
+  function grupos() {
+    var h = hojeISO();
+    return {
+      hoje: A.itens.filter(function (i) { return i.DataAgenda === h; }),
+      proximas: A.itens.filter(function (i) { return i.DataAgenda > h; }),
+      passadas: A.itens.filter(function (i) { return i.DataAgenda < h; }).reverse()
+    };
+  }
+  function render() {
+    var g = grupos();
+    $('abas').innerHTML = [['hoje', 'Hoje'], ['proximas', 'Próximas'], ['passadas', 'Passadas']].map(function (a) {
+      return '<button type="button" class="aba' + (A.aba === a[0] ? ' on' : '') + '" onclick="TFA.aba(\'' + a[0] + '\')">' + a[1] + (g[a[0]].length ? ' (' + g[a[0]].length + ')' : '') + '</button>';
+    }).join('');
+    var l = g[A.aba], el = $('lista');
+    if (!l.length) { el.innerHTML = '<p class="vazio">' + (A.aba === 'hoje' ? 'Nenhuma reunião hoje.' : A.aba === 'proximas' ? 'Nenhuma reunião marcada.' : 'Nada nos últimos 45 dias.') + '</p>'; return; }
+    var h = '', ult = '';
+    l.forEach(function (i) {
+      if (A.aba !== 'hoje' && i.DataAgenda !== ult) { ult = i.DataAgenda; h += '<div class="dia">' + diaSemana(i.DataAgenda) + ' ' + br(i.DataAgenda).slice(0, 5) + '</div>'; }
+      var loc = i.LocalOuLink ? (i.Modalidade === 'online' ? 'Online · ' : '') + i.LocalOuLink : '';
+      h += '<div class="card' + (i.Situacao === 'cancelada' ? ' canc' : '') + '" onclick="TFA.det(' + i.idAgenda + ')"><div class="hora">' + hh(i.HoraInicio) + '</div><div class="corpo"><div class="tit">' + esc(i.Titulo) + '</div>' +
+        (turmasTxt(i.idAgenda) ? '<div class="sub">' + esc(turmasTxt(i.idAgenda)) + '</div>' : '') + (loc ? '<div class="sub">' + esc(loc) + '</div>' : '') +
+        '<span class="chip ' + i.Situacao + '">' + SIT[i.Situacao] + '</span></div></div>';
+    });
+    el.innerHTML = h;
+  }
+  async function recarregar() { await carregarLista(); render(); }
+
+  // ---------- detalhe ----------
+  async function abrirDet(id) {
+    var a = A.itens.find(function (x) { return x.idAgenda === id; });
+    if (!a) return;
+    A.det = a;
+    var r = await Promise.all([db.from('FormAgendaParticipante').select('*').eq('IdAgenda', id).order('idParticipante'), db.from('FormAgendaHistorico').select('*').eq('IdAgenda', id).order('idHistorico', { ascending: false })]);
+    var tipo = (A.tipos.find(function (t) { return t.idTipoAgenda === a.IdTipoAgenda; }) || {}).NomeTipo || '';
+    var conv = (r[0].data || []).filter(function (p) { return p.Papel !== 'equipe'; }), eq = (r[0].data || []).filter(function (p) { return p.Papel === 'equipe'; });
+    var CF = { pendente: 'sem resposta', confirmou: 'confirmou', nao_vai: 'não vai' };
+    var nomes = { adiada: 'Adiada', cancelada: 'Cancelada', realizada: 'Realizada', reaberta: 'Reaberta' };
+    var h = '<button class="x" onclick="TFA.fecharDet()">✕</button><h2>' + esc(a.Titulo) + '</h2><span class="chip ' + a.Situacao + '">' + SIT[a.Situacao] + '</span>' +
+      '<div class="kv"><b>' + diaSemana(a.DataAgenda) + ' ' + br(a.DataAgenda) + ' às ' + hh(a.HoraInicio) + '</b> · ' + a.DuracaoMin + ' min</div>' +
+      (tipo ? '<div class="kv"><b>Tipo:</b> ' + esc(tipo) + '</div>' : '') +
+      (a.LocalOuLink ? '<div class="kv"><b>' + (a.Modalidade === 'online' ? 'Link' : 'Local') + ':</b> ' + (a.Modalidade === 'online' && /^https?:/i.test(a.LocalOuLink) ? '<a href="' + esc(a.LocalOuLink) + '" target="_blank" rel="noopener">' + esc(a.LocalOuLink) + '</a>' : esc(a.LocalOuLink)) + '</div>' : '') +
+      (turmasTxt(a.idAgenda) ? '<div class="kv"><b>Turmas:</b> ' + esc((A.turmasDa[a.idAgenda] || []).map(function (t) { return A.turmas[t] ? A.turmas[t].rotulo : ''; }).filter(Boolean).join(' | ')) + '</div>' : '') +
+      (a.Observacoes ? '<div class="kv"><b>Observações:</b><br>' + esc(a.Observacoes).replace(/\n/g, '<br>') + '</div>' : '') +
+      (a.Anotacoes ? '<div class="kv"><b>Anotações:</b><br>' + esc(a.Anotacoes).replace(/\n/g, '<br>') + '</div>' : '') +
+      '<div class="sec"><h3>Convidados (' + conv.length + ')</h3>' + (conv.length ? conv.map(function (p) { return '<div class="pp"><span>' + esc(p.Nome) + ' <small>' + (CF[p.Confirmacao] || '') + '</small></span></div>'; }).join('') : '<p class="hint">Nenhum convidado.</p>') +
+      (eq.length ? '<p class="hint">Equipe: ' + esc(eq.map(function (p) { return p.Nome; }).join(', ')) + '</p>' : '') + '</div>';
+    var hist = r[1].data || [];
+    if (hist.length) h += '<div class="sec"><h3>Histórico</h3>' + hist.map(function (x) { return '<p class="hint">' + br(String(x.created_at).slice(0, 10)) + ' · ' + (nomes[x.Evento] || x.Evento) + (x.Evento === 'adiada' ? ': de ' + (x.DataAnterior ? br(x.DataAnterior) : '—') + ' ' + hh(x.HoraAnterior) + ' para ' + br(x.DataNova) + ' ' + hh(x.HoraNova) : '') + (x.Motivo ? ' (' + esc(x.Motivo) + ')' : '') + '</p>'; }).join('') + '</div>';
+    if (a.Situacao === 'realizada') h += '<p class="hint" style="margin-top:14px">Reunião já registrada. Para ver ou editar as anotações, use o sistema no computador.</p><div class="acoes"><button class="btn2" onclick="TFA.fecharDet()">Fechar</button></div>';
+    else if (a.Situacao === 'cancelada') h += '<div class="acoes"><button class="btn2" onclick="TFA.reabrir()">Reabrir</button><button class="btn2" onclick="TFA.fecharDet()">Fechar</button></div>';
+    else h += '<div class="acoes"><button class="btn" onclick="TFA.editar()">Editar</button><button class="btn2" onclick="TFA.mostrarAdiar()">Adiar</button><button class="btn2 perigo" onclick="TFA.cancelar()">Cancelar</button></div>' +
+      '<div id="adiarBox" style="display:none" class="sec"><h3>Adiar para</h3><div class="l2"><div><label>Nova data</label><input type="date" id="adData" value="' + a.DataAgenda + '"></div><div><label>Novo horário</label><input type="time" id="adHora" value="' + hh(a.HoraInicio) + '"></div></div><label>Motivo (opcional)</label><input type="text" id="adMotivo"><div class="acoes"><button class="btn" onclick="TFA.confirmarAdiar()">Confirmar adiamento</button></div></div>';
+    $('detCorpo').innerHTML = h; $('shDet').classList.add('show');
+  }
+  function fecharDet() { $('shDet').classList.remove('show'); A.det = null; }
+  function mostrarAdiar() { var b = $('adiarBox'); b.style.display = b.style.display === 'none' ? '' : 'none'; }
+
+  async function mudarSituacao(sit, evento, upd, hist) {
+    var a = A.det; if (!a) return false;
+    var u = Object.assign({ Situacao: sit }, upd || {});
+    var r = await db.from('FormAgenda').update(u).eq('idAgenda', a.idAgenda);
+    if (r.error) { toast('Erro: ' + r.error.message, true); return false; }
+    await db.from('FormAgendaHistorico').insert(Object.assign({ IdAgenda: a.idAgenda, Evento: evento, DataAnterior: a.DataAgenda, HoraAnterior: a.HoraInicio }, hist || {}));
+    ping(); fecharDet(); await recarregar();
+    return true;
+  }
+  async function confirmarAdiar() {
+    var nd = $('adData').value, nh = $('adHora').value;
+    if (!nd || !nh) { toast('Informe a nova data e o novo horário.', true); return; }
+    var motivo = $('adMotivo').value.trim() || null;
+    if (await mudarSituacao('adiada', 'adiada', { DataAgenda: nd, HoraInicio: nh }, { DataNova: nd, HoraNova: nh, Motivo: motivo })) toast('Reunião adiada para ' + br(nd) + ' às ' + nh + '.');
+  }
+  async function cancelar() { if (!confirm('Cancelar esta reunião?')) return; if (await mudarSituacao('cancelada', 'cancelada')) toast('Reunião cancelada.'); }
+  async function reabrir() { if (await mudarSituacao('agendada', 'reaberta')) toast('Reunião reaberta.'); }
+
+  // ---------- formulário ----------
+  function suger() {
+    var F = A.form; if (!F || F.tituloManual) return;
+    var sel = $('fTipo'), tipo = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : 'Reunião';
+    var ts = F.turmas.map(function (id) { return A.turmas[id]; }).filter(Boolean), txt = tipo;
+    if (ts.length) txt += ' - ' + ts[0].curto + (ts.length > 1 ? ' (+' + (ts.length - 1) + ' turma' + (ts.length > 2 ? 's' : '') + ')' : '');
+    $('fTitulo').value = txt;
+  }
+  async function abrirForm(id) {
+    var a = id ? A.itens.find(function (x) { return x.idAgenda === id; }) : null;
+    A.form = { id: id || null, turmas: [], turmasOrig: [], part: [], equipe: [], existentes: [], seq: 0, tituloManual: !!a };
+    var F = A.form;
+    if (a) {
+      var r = await Promise.all([db.from('FormAgendaTurma').select('IdTurma').eq('IdAgenda', id), db.from('FormAgendaParticipante').select('*').eq('IdAgenda', id).order('idParticipante')]);
+      F.turmas = (r[0].data || []).map(function (x) { return x.IdTurma; }); F.turmasOrig = F.turmas.slice(); F.existentes = r[1].data || [];
+    }
+    $('formCorpo').innerHTML = '<button class="x" onclick="TFA.fecharForm()">✕</button><h2>' + (a ? 'Editar agenda' : 'Nova agenda') + '</h2>' +
+      '<label>Tipo</label><select id="fTipo" onchange="TFA.suger()">' + A.tipos.map(function (t) { return '<option value="' + t.idTipoAgenda + '"' + (a && a.IdTipoAgenda === t.idTipoAgenda ? ' selected' : '') + '>' + esc(t.NomeTipo) + '</option>'; }).join('') + '</select>' +
+      '<label>Turmas</label><div id="fTurmas"></div><input type="text" id="fTurmaBusca" list="turmaOp" placeholder="Digite para buscar e escolha na lista" onchange="TFA.addTurma()">' +
+      '<label>Título</label><input type="text" id="fTitulo" oninput="TFA.manual()" value="' + esc(a ? a.Titulo : '') + '">' +
+      '<div class="l3"><div><label>Data</label><input type="date" id="fData" value="' + (a ? a.DataAgenda : '') + '"></div><div><label>Hora</label><input type="time" id="fHora" value="' + (a ? hh(a.HoraInicio) : '') + '"></div><div><label>Min.</label><input type="number" id="fDur" min="5" step="5" value="' + (a ? a.DuracaoMin : 60) + '"></div></div>' +
+      '<div class="l2"><div><label>Modalidade</label><select id="fMod" onchange="TFA.rotLocal()"><option value="presencial"' + (a && a.Modalidade === 'presencial' ? ' selected' : '') + '>Presencial</option><option value="online"' + (a && a.Modalidade === 'online' ? ' selected' : '') + '>Online</option></select></div><div><label id="fLocalRot">Local</label><input type="text" id="fLocal" value="' + esc(a ? a.LocalOuLink : '') + '"></div></div>' +
+      '<label>Observações</label><textarea id="fObs">' + esc(a ? a.Observacoes : '') + '</textarea>' +
+      '<div class="sec"><h3>Convidados</h3><p class="hint">A mensagem das 7h vai só para os convidados marcados.</p><div id="fPart"></div>' +
+      '<label>Convidado avulso</label><div class="l2"><input type="text" id="fAvNome" placeholder="Nome"><input type="text" id="fAvWhats" placeholder="WhatsApp com DDD"></div><div class="acoes"><button class="btn2" onclick="TFA.addAvulso()">Adicionar avulso</button></div>' +
+      '<p class="tt">Equipe presente (não recebe mensagem)</p><div id="fEquipe"></div></div>' +
+      '<div class="barra-salvar"><div class="acoes"><button class="btn" id="fSalvar" onclick="TFA.salvar()" style="flex:1">Salvar agenda</button><button class="btn2" onclick="TFA.fecharForm()">Fechar</button></div></div>';
+    $('shForm').classList.add('show'); $('shDet').classList.remove('show');
+    rotLocal(); renderTurmas(); await montarPart(!a); if (!a) suger();
+  }
+  function fecharForm() { $('shForm').classList.remove('show'); A.form = null; }
+  function rotLocal() { $('fLocalRot').textContent = $('fMod').value === 'online' ? 'Link da reunião' : 'Local (endereço)'; }
+  function renderTurmas() {
+    $('fTurmas').innerHTML = A.form.turmas.length ? A.form.turmas.map(function (id) { return '<span class="tchip">' + esc(A.turmas[id] ? A.turmas[id].curto : 'Turma ' + id) + '<button onclick="TFA.delTurma(' + id + ')">×</button></span>'; }).join('') : '<p class="hint">Nenhuma turma. Adicione abaixo.</p>';
+  }
+  async function addTurma() {
+    var inp = $('fTurmaBusca'), id = A.rotPorId[inp.value]; inp.value = '';
+    if (!id) { toast('Escolha uma turma da lista de sugestões.', true); return; }
+    if (A.form.turmas.indexOf(id) < 0) A.form.turmas.push(id);
+    renderTurmas(); await montarPart(true); suger();
+  }
+  async function delTurma(id) { A.form.turmas = A.form.turmas.filter(function (x) { return x !== id; }); renderTurmas(); await montarPart(false); suger(); }
+
+  async function montarPart(padrao) {
+    var F = A.form, antes = {}; F.part.forEach(function (p) { antes[p.key] = p.sel; });
+    var faltam = F.turmas.filter(function (id) { return !A.formandos[id]; });
+    if (faltam.length) {
+      var r = await db.from('FormFormando').select('idFormando, IdTurma, FormandoNome, FormandoSobrenome, Whats, Comissao, FormAtivo').in('IdTurma', faltam);
+      faltam.forEach(function (id) { A.formandos[id] = []; });
+      (r.data || []).filter(function (x) { return x.FormAtivo !== false; }).forEach(function (x) { A.formandos[x.IdTurma].push(x); });
+    }
+    var ex = {}; F.existentes.forEach(function (e) { ex[e.IdFormando ? 'f' + e.IdFormando : e.IdEquipe ? 'e' + e.IdEquipe : 'a' + e.idParticipante] = e; });
+    var lista = [];
+    F.turmas.forEach(function (idT) {
+      (A.formandos[idT] || []).forEach(function (x) {
+        var key = 'f' + x.idFormando, e = ex[key];
+        lista.push({ key: key, papel: x.Comissao ? 'comissao' : 'formando', idFormando: x.idFormando, idTurma: idT, nome: nome((x.FormandoNome || '') + ' ' + (x.FormandoSobrenome || '')), whats: x.Whats || '', comissao: !!x.Comissao, existenteId: e ? e.idParticipante : null, sel: key in antes ? antes[key] : (e ? true : (padrao && !!x.Comissao)) });
+      });
+    });
+    F.existentes.forEach(function (e) {
+      var key = e.IdFormando ? 'f' + e.IdFormando : e.IdEquipe ? 'e' + e.IdEquipe : 'a' + e.idParticipante;
+      if (e.Papel === 'equipe' || lista.some(function (p) { return p.key === key; })) return;
+      lista.push({ key: key, papel: e.Papel, idFormando: e.IdFormando, idTurma: e.IdTurma, nome: e.Nome, whats: e.Whats || '', existenteId: e.idParticipante, sel: key in antes ? antes[key] : true, extra: true });
+    });
+    F.part.filter(function (p) { return p.novo; }).forEach(function (p) { lista.push(p); });
+    F.part = lista;
+    F.equipe = A.equipe.map(function (q) { var key = 'e' + q.idEquipe, e = ex[key], ant = (F.equipe || []).find(function (x) { return x.key === key; }); return { key: key, idEquipe: q.idEquipe, nome: q.Nome, existenteId: e ? e.idParticipante : null, sel: ant ? ant.sel : !!e }; });
+    renderPart();
+  }
+  function linha(p) { return '<label class="pp"><input type="checkbox" ' + (p.sel ? 'checked' : '') + ' onchange="TFA.marcar(\'' + p.key + '\', this.checked)"><span>' + esc(p.nome) + (p.papel === 'comissao' ? ' <small>(comissão)</small>' : '') + (p.whats ? '' : ' <small>(sem WhatsApp)</small>') + '</span></label>'; }
+  function renderPart() {
+    var F = A.form, h = '';
+    F.turmas.forEach(function (idT) {
+      var d = F.part.filter(function (p) { return p.idTurma === idT && !p.extra; });
+      h += '<div class="tt">' + esc(A.turmas[idT] ? A.turmas[idT].curto : 'Turma') + '</div>';
+      if (!d.length) { h += '<p class="hint">Nenhum formando cadastrado.</p>'; return; }
+      var com = d.filter(function (p) { return p.comissao; }), out = d.filter(function (p) { return !p.comissao; });
+      h += com.length ? com.map(linha).join('') : '<p class="hint">Sem integrantes de comissão cadastrados.</p>';
+      if (out.length) h += '<details><summary class="hint">Outros formandos (' + out.length + ')</summary>' + out.map(linha).join('') + '</details>';
+    });
+    var ext = F.part.filter(function (p) { return p.extra; });
+    if (ext.length) h += '<div class="tt">Avulsos / outros</div>' + ext.map(linha).join('');
+    if (!h) h = '<p class="hint">Adicione uma turma para ver os convidados sugeridos.</p>';
+    $('fPart').innerHTML = h;
+    $('fEquipe').innerHTML = F.equipe.map(function (q) { return '<label class="pp"><input type="checkbox" ' + (q.sel ? 'checked' : '') + ' onchange="TFA.marcarEq(\'' + q.key + '\', this.checked)"><span>' + esc(q.nome) + '</span></label>'; }).join('');
+  }
+  function marcar(k, v) { var p = A.form.part.find(function (x) { return x.key === k; }); if (p) p.sel = v; }
+  function marcarEq(k, v) { var p = A.form.equipe.find(function (x) { return x.key === k; }); if (p) p.sel = v; }
+  function addAvulso() {
+    var n = $('fAvNome').value.trim(), w = $('fAvWhats').value.replace(/\D/g, '');
+    if (!n) { toast('Informe o nome do convidado.', true); return; }
+    if (w && (w.length < 10 || w.length > 13)) { toast('WhatsApp inválido. Use DDD + número.', true); return; }
+    A.form.seq++;
+    A.form.part.push({ key: 'n' + A.form.seq, papel: 'avulso', idFormando: null, idTurma: null, nome: nome(n), whats: w && w.length <= 11 ? '55' + w : w, sel: true, novo: true, extra: true });
+    $('fAvNome').value = ''; $('fAvWhats').value = ''; renderPart();
+  }
+
+  async function salvar() {
+    var F = A.form;
+    var titulo = $('fTitulo').value.trim(), data = $('fData').value, hora = $('fHora').value, dur = Number($('fDur').value) || 60;
+    if (!titulo) { toast('Informe o título.', true); return; }
+    if (!data || !hora) { toast('Informe a data e a hora.', true); return; }
+    if (!F.turmas.length) { toast('Adicione pelo menos uma turma.', true); return; }
+    var md = await db.from('FormAgenda').select('idAgenda, Titulo, HoraInicio, DuracaoMin, Situacao').eq('DataAgenda', data).in('Situacao', ['agendada', 'adiada']);
+    var min = function (h) { var p = String(h).split(':'); return Number(p[0]) * 60 + Number(p[1]); }, ini = min(hora), fim = ini + dur;
+    var cf = (md.data || []).find(function (o) { return o.idAgenda !== F.id && min(o.HoraInicio) < fim && (min(o.HoraInicio) + o.DuracaoMin) > ini; });
+    if (cf && !confirm('Já existe uma agenda nesse horário: "' + cf.Titulo + '" às ' + hh(cf.HoraInicio) + '. Salvar mesmo assim?')) return;
+    var btn = $('fSalvar'); btn.disabled = true; btn.textContent = 'Salvando...';
+    var reg = { IdTipoAgenda: Number($('fTipo').value) || null, Titulo: titulo, DataAgenda: data, HoraInicio: hora, DuracaoMin: dur, Modalidade: $('fMod').value, LocalOuLink: $('fLocal').value.trim() || null, Observacoes: $('fObs').value.trim() || null };
+    var id = F.id;
+    try {
+      if (id) { var u = await db.from('FormAgenda').update(reg).eq('idAgenda', id); if (u.error) throw u.error; }
+      else { var n = await db.from('FormAgenda').insert(reg).select('idAgenda').single(); if (n.error) throw n.error; id = n.data.idAgenda; }
+      var rem = F.turmasOrig.filter(function (t) { return F.turmas.indexOf(t) < 0; });
+      if (rem.length) { var d1 = await db.from('FormAgendaTurma').delete().eq('IdAgenda', id).in('IdTurma', rem); if (d1.error) throw d1.error; }
+      var novas = F.turmas.filter(function (t) { return F.turmasOrig.indexOf(t) < 0; });
+      if (novas.length) { var i1 = await db.from('FormAgendaTurma').insert(novas.map(function (t) { return { IdAgenda: id, IdTurma: t }; })); if (i1.error) throw i1.error; }
+      var des = F.part.filter(function (p) { return p.sel; }).concat(F.equipe.filter(function (q) { return q.sel; }));
+      var manter = des.map(function (p) { return p.existenteId; }).filter(Boolean);
+      var apagar = F.existentes.filter(function (e) { return manter.indexOf(e.idParticipante) < 0; }).map(function (e) { return e.idParticipante; });
+      if (apagar.length) { var d2 = await db.from('FormAgendaParticipante').delete().in('idParticipante', apagar); if (d2.error) throw d2.error; }
+      var ins = des.filter(function (p) { return !p.existenteId; }).map(function (p) {
+        return p.idEquipe ? { IdAgenda: id, Papel: 'equipe', IdEquipe: p.idEquipe, Nome: p.nome, RecebeAviso: false } : { IdAgenda: id, Papel: p.papel, IdFormando: p.idFormando || null, IdTurma: p.idTurma || null, Nome: p.nome, Whats: p.whats || null, RecebeAviso: true };
+      });
+      if (ins.length) { var i2 = await db.from('FormAgendaParticipante').insert(ins); if (i2.error) throw i2.error; }
+    } catch (e) { btn.disabled = false; btn.textContent = 'Salvar agenda'; toast('Erro ao salvar: ' + (e.message || e), true); return; }
+    ping(); fecharForm(); toast('Agenda salva.');
+    var dd = new Date(data + 'T00:00:00'), hoje = hojeISO();
+    A.aba = data === hoje ? 'hoje' : (data > hoje ? 'proximas' : 'passadas');
+    await recarregar();
+  }
+
+  window.TFA = {
+    aba: function (a) { A.aba = a; render(); }, det: abrirDet, fecharDet: fecharDet, mostrarAdiar: mostrarAdiar, confirmarAdiar: confirmarAdiar, cancelar: cancelar, reabrir: reabrir,
+    editar: function () { var id = A.det && A.det.idAgenda; if (id) abrirForm(id); }, fecharForm: fecharForm, suger: suger, manual: function () { if (A.form) A.form.tituloManual = true; },
+    rotLocal: rotLocal, addTurma: addTurma, delTurma: delTurma, marcar: marcar, marcarEq: marcarEq, addAvulso: addAvulso, salvar: salvar
+  };
+  window.abrirForm = abrirForm;
+
+  (async function iniciar() {
+    try { await carregarBase(); await carregarLista(); render(); }
+    catch (e) { $('lista').innerHTML = '<p class="vazio">Erro ao carregar: ' + esc(e.message || e) + '<br>Verifique a internet e abra de novo.</p>'; }
+    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) navigator.serviceWorker.register('sw.js').catch(function () {});
+  })();
+})();
+</script>
+</body>
+</html>
