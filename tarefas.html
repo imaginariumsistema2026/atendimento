@@ -42,7 +42,7 @@
   'use strict';
   var TF = window.TF = {};
   var C = { raiz: null, setorId: 5, admin: false };
-  var S = { aba: 'fila', setores: [], setorMap: {}, tarefas: {}, etapas: [], turmaRot: {}, turmaIdPorRot: {}, colacoes: [], colRot: {}, base: false, modo: 'simples', maisAberto: false, detalheId: null, edEtapa: null, filtroSetor: '', verParadas: false };
+  var S = { sel: {}, aba: 'fila', setores: [], setorMap: {}, tarefas: {}, etapas: [], turmaRot: {}, turmaIdPorRot: {}, colacoes: [], colRot: {}, base: false, modo: 'simples', maisAberto: false, detalheId: null, edEtapa: null, filtroSetor: '', verParadas: false };
 
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var $ = function (id) { return document.getElementById(id); };
@@ -64,6 +64,7 @@
 .tf-btn{background:#2f6b4f;color:#ffffff;border:none;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;font-family:inherit;font-size:.9rem}\
 .tf-btn2{background:#f6f5f2;color:#1f2a24;border:1px solid #dfe0da;border-radius:10px;padding:8px 13px;cursor:pointer;font-family:inherit;font-size:.85rem}\
 .tf-btn2.perigo{color:#b3261e;border-color:#e5b9b3}\
+.tf-sug{margin-top:4px}.tf-sug button{display:block;width:100%;text-align:left;padding:11px 12px;background:#fff;border:1px solid #dfe0da;border-top:none;font-size:.92rem;font-family:inherit;color:#1f2a24;cursor:pointer}.tf-sug button:first-child{border-top:1px solid #dfe0da;border-radius:8px 8px 0 0}.tf-sug button:last-child{border-radius:0 0 8px 8px}.tf-sug button:only-child{border-radius:8px}\
 .tf-lnk{background:none;border:none;color:#2f6b4f;cursor:pointer;font-size:.82rem;padding:2px 0;font-family:inherit;text-decoration:underline}\
 .tf-mais{background:#f6f5f2;border:1px solid #dfe0da;border-radius:10px;padding:10px;margin:6px 0 10px;display:grid;gap:8px}\
 .tf-mais label,.tf-dlg label{font-size:.78rem;color:#6b7570;display:block;margin-bottom:3px}\
@@ -209,6 +210,7 @@
 
   function render() {
     var app = $('tfApp'); if (!app) return;
+    S.sel = {};
     var abas = [['fila', 'Minha fila'], ['acomp', 'Acompanhando']];
     if (C.admin) abas.push(['setores', 'Setores']);
     abas.push(['hist', 'Histórico']);
@@ -228,7 +230,7 @@
     if (S.modo === 'simples') {
       h += '<button type="button" class="tf-lnk" onclick="TF.mais()">' + (S.maisAberto ? '− menos opções' : '+ mais opções (notas, turma, outro setor)') + '</button>';
       if (S.maisAberto) h += '<div class="tf-mais"><div><label>Notas / orientações</label><textarea id="tfNovoNotas"></textarea></div>' +
-        '<div class="tf-row2"><div><label>Turma (opcional)</label><input type="text" id="tfNovoTurma" list="tfTurmaOp" placeholder="Digite para buscar"></div>' +
+        '<div class="tf-row2"><div><label>Turma (opcional)</label>' + pickTurma('tfNovoTurma') + '</div>' +
         '<div><label>Formatura (opcional)</label><select id="tfNovoCol"><option value="">—</option>' + S.colacoes.map(function (c) { return '<option value="' + c.id + '">' + esc(c.rot) + '</option>'; }).join('') + '</select></div></div>' +
         '<div><label>Setor responsável</label><select id="tfNovoSetor">' + optSetores(C.setorId) + '</select></div></div>';
     }
@@ -237,10 +239,23 @@
   TF.modo = function (m) { var v = $('tfNovoTit') ? $('tfNovoTit').value : ''; S.modo = m; render(); if ($('tfNovoTit')) { $('tfNovoTit').value = v; $('tfNovoTit').focus(); } };
   TF.mais = function () { var v = $('tfNovoTit').value; S.maisAberto = !S.maisAberto; render(); $('tfNovoTit').value = v; };
 
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\/]+/g, ' ').trim(); }
+  function pickTurma(id) {
+    return '<input type="text" id="' + id + '" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Digite: univinte enfermagem 29/2" oninput="TF.buscaTurma(\'' + id + '\')"><div class="tf-sug" id="' + id + '_s"></div>';
+  }
+  TF.buscaTurma = function (id) {
+    delete S.sel[id];
+    var box = $(id + '_s'), q = norm($(id).value);
+    if (!q) { box.innerHTML = ''; return; }
+    var tokens = q.split(' ');
+    if (!S.turmaNorm) { S.turmaNorm = {}; Object.keys(S.turmaRot).forEach(function (k) { S.turmaNorm[k] = norm(S.turmaRot[k]); }); }
+    var achou = Object.keys(S.turmaRot).filter(function (k) { return tokens.every(function (t) { return S.turmaNorm[k].indexOf(t) >= 0; }); }).slice(0, 8);
+    box.innerHTML = achou.length ? achou.map(function (k) { return '<button type="button" onclick="TF.escolheTurma(\'' + id + '\', ' + k + ')">' + esc(S.turmaRot[k]) + '</button>'; }).join('') : '<div class="tf-vazio" style="padding:8px">Nenhuma turma encontrada.</div>';
+  };
+  TF.escolheTurma = function (id, tid) { S.sel[id] = Number(tid); $(id).value = S.turmaRot[tid]; $(id + '_s').innerHTML = ''; };
   function turmaDoCampo(idCampo) {
     var el = $(idCampo); if (!el || !el.value.trim()) return null;
-    var id = S.turmaIdPorRot[el.value.trim()];
-    return id || -1;
+    return S.sel[idCampo] || -1;
   }
   TF.criar = async function () {
     var tit = $('tfNovoTit').value.trim();
@@ -248,7 +263,7 @@
     if (!tit) { toast('Digite o título da tarefa.', true); $('tfNovoTit').focus(); return; }
     var notas = $('tfNovoNotas') ? $('tfNovoNotas').value.trim() || null : null;
     var idTurma = $('tfNovoTurma') ? turmaDoCampo('tfNovoTurma') : null;
-    if (idTurma === -1) { toast('Escolha a turma da lista.', true); return; }
+    if (idTurma === -1) { toast('Toque na turma na lista de resultados.', true); return; }
     var idCol = $('tfNovoCol') && $('tfNovoCol').value ? Number($('tfNovoCol').value) : null;
     var setor = $('tfNovoSetor') ? Number($('tfNovoSetor').value) : C.setorId;
     try {
@@ -401,12 +416,12 @@
   // tarefa com etapas: criação
   var EL = [];
   function abrirDlgEtapas(tit) {
-    S.detalheId = null;
+    S.detalheId = null; S.sel = {};
     EL = [{ tit: '', setor: C.setorId, notas: '', junto: false }];
     abrirOv('<h2>Nova tarefa com etapas</h2><p class="tf-sub0" style="color:#6b7570;font-size:.85rem;margin:0 0 10px">Cada etapa vai para a fila do setor responsável quando chegar a vez dela.</p>' +
       '<div><label>Título da tarefa</label><input type="text" id="tfDlgTit"></div>' +
       '<div style="margin-top:8px"><label>Notas / orientações</label><textarea id="tfDlgNotas"></textarea></div>' +
-      '<div class="tf-row2" style="margin-top:8px"><div><label>Turma (opcional)</label><input type="text" id="tfDlgTurma" list="tfTurmaOp" placeholder="Digite para buscar"></div>' +
+      '<div class="tf-row2" style="margin-top:8px"><div><label>Turma (opcional)</label>' + pickTurma('tfDlgTurma') + '</div>' +
       '<div><label>Formatura (opcional)</label><select id="tfDlgCol"><option value="">—</option>' + S.colacoes.map(function (c) { return '<option value="' + c.id + '">' + esc(c.rot) + '</option>'; }).join('') + '</select></div></div>' +
       '<div class="tf-h3">Etapas</div><div id="tfDlgEtapas"></div>' +
       '<button type="button" class="tf-btn2" onclick="TF.elAdd()">+ etapa</button>' +
@@ -437,7 +452,7 @@
     var tit = $('tfDlgTit').value.trim();
     if (!tit) { toast('Informe o título da tarefa.', true); return; }
     if (EL.some(function (e) { return !e.tit.trim(); })) { toast('Preencha o título de todas as etapas.', true); return; }
-    var idTurma = turmaDoCampo('tfDlgTurma'); if (idTurma === -1) { toast('Escolha a turma da lista.', true); return; }
+    var idTurma = turmaDoCampo('tfDlgTurma'); if (idTurma === -1) { toast('Toque na turma na lista de resultados.', true); return; }
     var idCol = $('tfDlgCol').value ? Number($('tfDlgCol').value) : null;
     try {
       var r = await db().from('FormTarefa').insert({ Titulo: tit, Notas: $('tfDlgNotas').value.trim() || null, IdSetorDono: C.setorId, IdTurma: idTurma, IdColacao: idCol, Simples: false }).select('id').single();

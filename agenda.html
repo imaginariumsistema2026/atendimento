@@ -53,6 +53,8 @@
   .pp { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #edf0ee; font-size:.95rem; }
   .pp input { width:22px; height:22px; flex:0 0 22px; margin:0; }
   .pp small { color:var(--muted); }
+.sug { margin-top:4px; } .sug button { display:block; width:100%; text-align:left; padding:12px; background:#fff; border:1px solid var(--line); border-top:none; font-size:.95rem; font-family:inherit; color:var(--ink); }
+  .sug button:first-child { border-top:1px solid var(--line); border-radius:10px 10px 0 0; } .sug button:last-child { border-radius:0 0 10px 10px; } .sug button:only-child { border-radius:10px; }
   .tt { font-size:.82rem; font-weight:700; color:#444; margin:12px 0 2px; }
   .hint { color:var(--muted); font-size:.82rem; margin:2px 0; }
   .toast { position:fixed; left:50%; bottom:100px; transform:translateX(-50%); background:var(--accent); color:#fff; padding:10px 16px; border-radius:10px; z-index:300; font-weight:600; display:none; max-width:90%; text-align:center; }
@@ -242,7 +244,7 @@
     }
     $('formCorpo').innerHTML = '<button class="x" onclick="TFA.fecharForm()">✕</button><h2>' + (a ? 'Editar agenda' : 'Nova agenda') + '</h2>' +
       '<label>Tipo</label><select id="fTipo" onchange="TFA.suger()">' + A.tipos.map(function (t) { return '<option value="' + t.idTipoAgenda + '"' + (a && a.IdTipoAgenda === t.idTipoAgenda ? ' selected' : '') + '>' + esc(t.NomeTipo) + '</option>'; }).join('') + '</select>' +
-      '<label>Turmas</label><div id="fTurmas"></div><input type="text" id="fTurmaBusca" list="turmaOp" placeholder="Digite para buscar e escolha na lista" onchange="TFA.addTurma()">' +
+      '<label>Turmas</label><div id="fTurmas"></div><input type="text" id="fTurmaBusca" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Digite: univinte enfermagem 29/2" oninput="TFA.busca()"><div class="sug" id="fSug"></div>' +
       '<label>Título</label><input type="text" id="fTitulo" oninput="TFA.manual()" value="' + esc(a ? a.Titulo : '') + '">' +
       '<div class="l3"><div><label>Data</label><input type="date" id="fData" value="' + (a ? a.DataAgenda : '') + '"></div><div><label>Hora</label><input type="time" id="fHora" value="' + (a ? hh(a.HoraInicio) : '') + '"></div><div><label>Min.</label><input type="number" id="fDur" min="5" step="5" value="' + (a ? a.DuracaoMin : 60) + '"></div></div>' +
       '<div class="l2"><div><label>Modalidade</label><select id="fMod" onchange="TFA.rotLocal()"><option value="presencial"' + (a && a.Modalidade === 'presencial' ? ' selected' : '') + '>Presencial</option><option value="online"' + (a && a.Modalidade === 'online' ? ' selected' : '') + '>Online</option></select></div><div><label id="fLocalRot">Local</label><input type="text" id="fLocal" value="' + esc(a ? a.LocalOuLink : '') + '"></div></div>' +
@@ -259,9 +261,18 @@
   function renderTurmas() {
     $('fTurmas').innerHTML = A.form.turmas.length ? A.form.turmas.map(function (id) { return '<span class="tchip">' + esc(A.turmas[id] ? A.turmas[id].curto : 'Turma ' + id) + '<button onclick="TFA.delTurma(' + id + ')">×</button></span>'; }).join('') : '<p class="hint">Nenhuma turma. Adicione abaixo.</p>';
   }
-  async function addTurma() {
-    var inp = $('fTurmaBusca'), id = A.rotPorId[inp.value]; inp.value = '';
-    if (!id) { toast('Escolha uma turma da lista de sugestões.', true); return; }
+  function norm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9\/]+/g, ' ').trim(); }
+  function busca() {
+    var box = $('fSug'), q = norm($('fTurmaBusca').value);
+    if (!q) { box.innerHTML = ''; return; }
+    var tokens = q.split(' ');
+    if (!A.norm) { A.norm = {}; A.lista.forEach(function (t) { A.norm[t.id] = norm(t.rotulo); }); }
+    var achou = A.lista.filter(function (t) { return A.form.turmas.indexOf(t.id) < 0 && tokens.every(function (k) { return A.norm[t.id].indexOf(k) >= 0; }); }).slice(0, 8);
+    box.innerHTML = achou.length ? achou.map(function (t) { return '<button type="button" onclick="TFA.addTurma(' + t.id + ')">' + esc(t.rotulo) + '</button>'; }).join('') : '<p class="hint" style="padding:6px 2px">Nenhuma turma encontrada.</p>';
+  }
+  async function addTurma(id) {
+    $('fTurmaBusca').value = ''; $('fSug').innerHTML = '';
+    if (!A.turmas[id]) return;
     if (A.form.turmas.indexOf(id) < 0) A.form.turmas.push(id);
     renderTurmas(); await montarPart(true); suger();
   }
@@ -359,7 +370,7 @@
   window.TFA = {
     aba: function (a) { A.aba = a; render(); }, det: abrirDet, fecharDet: fecharDet, mostrarAdiar: mostrarAdiar, confirmarAdiar: confirmarAdiar, cancelar: cancelar, reabrir: reabrir,
     editar: function () { var id = A.det && A.det.idAgenda; if (id) abrirForm(id); }, fecharForm: fecharForm, suger: suger, manual: function () { if (A.form) A.form.tituloManual = true; },
-    rotLocal: rotLocal, addTurma: addTurma, delTurma: delTurma, marcar: marcar, marcarEq: marcarEq, addAvulso: addAvulso, salvar: salvar
+    rotLocal: rotLocal, busca: busca, addTurma: addTurma, delTurma: delTurma, marcar: marcar, marcarEq: marcarEq, addAvulso: addAvulso, salvar: salvar
   };
   window.abrirForm = abrirForm;
 
