@@ -126,6 +126,10 @@
   function dataBR(iso) { if (!iso) return ''; var p = String(iso).slice(0, 10).split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
   function diaLocal(ts) { var d = new Date(ts); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   function horaLocal(ts) { var d = new Date(ts); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+  function hojeISO() { return diaLocal(Date.now()); }
+  function agendada(e) { return e.Situacao === 'aberta' && e.DataInicio && String(e.DataInicio).slice(0, 10) > hojeISO(); }
+  function dataOk(v) { v = String(v || '').trim(); return v && v > hojeISO() ? v : null; }
+  var MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   function dias(ts) { return Math.floor((Date.now() - new Date(ts).getTime()) / 86400000); }
   function nomeSetor(id) { return S.setorMap[id] || 'Setor ' + id; }
   function ehDono(t) { return Number(t.IdSetorDono) === Number(C.setorId); }
@@ -166,6 +170,27 @@
     var r = await Promise.all([todos('FormTarefa', '*', 'id'), todos('FormTarefaEtapaVw', '*', 'id')]);
     S.tarefas = {}; r[0].forEach(function (t) { S.tarefas[t.id] = t; });
     S.etapas = r[1];
+    await promover();
+  }
+  // etapas agendadas cuja data chegou entram no TOPO da fila do setor
+  async function promover() {
+    var hoje = hojeISO();
+    var venc = S.etapas.filter(function (e) { return e.Situacao === 'aberta' && e.Liberada && e.DataInicio && String(e.DataInicio).slice(0, 10) <= hoje; })
+      .sort(function (a, b) { return String(a.DataInicio).localeCompare(String(b.DataInicio)) || a.id - b.id; });
+    if (!venc.length) return;
+    var min = {};
+    S.etapas.forEach(function (e) { if (e.Situacao === 'aberta' && venc.indexOf(e) < 0) { var p = Number(e.Posicao); if (min[e.IdSetor] === undefined || p < min[e.IdSetor]) min[e.IdSetor] = p; } });
+    var ups = [], atual = {};
+    venc.slice().reverse().forEach(function (e) {
+      var s = e.IdSetor, base = atual[s] !== undefined ? atual[s] : (min[s] !== undefined ? min[s] : 1), np = base - 1;
+      atual[s] = np; e.Posicao = np; e.DataInicio = null;
+      ups.push(db().from('FormTarefaEtapa').update({ Posicao: np, DataInicio: null }).eq('id', e.id));
+    });
+    try { await Promise.all(ups); } catch (x) { }
+  }
+  function posMin(setor, exceto) {
+    var m = null; S.etapas.forEach(function (e) { if (e.id !== exceto && Number(e.IdSetor) === Number(setor) && e.Situacao === 'aberta') { var p = Number(e.Posicao); if (m === null || p < m) m = p; } });
+    return m === null ? 1 : m;
   }
   function etapasDe(idT) { return S.etapas.filter(function (e) { return e.IdTarefa === idT; }).sort(function (a, b) { return a.Ordem - b.Ordem || a.id - b.id; }); }
   function posMax(setor) {
@@ -211,13 +236,14 @@
   function render() {
     var app = $('tfApp'); if (!app) return;
     S.sel = {};
-    var abas = [['fila', 'Minha fila'], ['acomp', 'Acompanhando']];
+    var nAg = S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(C.setorId) && agendada(e); }).length;
+    var abas = [['fila', 'Minha fila'], ['agend', 'Agendadas' + (nAg ? ' (' + nAg + ')' : '')], ['acomp', 'Acompanhando']];
     if (C.admin) abas.push(['setores', 'Setores']);
     abas.push(['hist', 'Histórico']);
     var h = '<h1>Tarefas — ' + esc(nomeSetor(C.setorId)) + '</h1><div class="tf-sub0">Tarefas do dia a dia. Concluir manda para o histórico; ⤓ manda para o final da fila.</div>';
     h += '<div class="tf-abas">' + abas.map(function (a) { return '<button type="button" class="tf-aba' + (S.aba === a[0] ? ' on' : '') + '" onclick="TF.abrir(\'' + a[0] + '\')">' + a[1] + '</button>'; }).join('') + '</div>';
     if (S.aba === 'fila') h += htmlAdd();
-    h += '<div id="tfCorpo">' + (S.aba === 'fila' ? htmlFila() : S.aba === 'acomp' ? htmlAcomp() : S.aba === 'setores' ? htmlSetores() : htmlHist()) + '</div>';
+    h += '<div id="tfCorpo">' + (S.aba === 'fila' ? htmlFila() : S.aba === 'agend' ? htmlAgend() : S.aba === 'acomp' ? htmlAcomp() : S.aba === 'setores' ? htmlSetores() : htmlHist()) + '</div>';
     app.innerHTML = h;
   }
 
@@ -228,11 +254,12 @@
       '<div class="tf-modo"><button type="button" class="' + (S.modo === 'simples' ? 'on' : '') + '" onclick="TF.modo(\'simples\')">Simples</button><button type="button" class="' + (S.modo === 'etapas' ? 'on' : '') + '" onclick="TF.modo(\'etapas\')">Com etapas</button></div>' +
       '<button type="button" class="tf-btn" onclick="TF.criar()">+ Adicionar</button></div>';
     if (S.modo === 'simples') {
-      h += '<button type="button" class="tf-lnk" onclick="TF.mais()">' + (S.maisAberto ? '− menos opções' : '+ mais opções (notas, turma, outro setor)') + '</button>';
+      h += '<button type="button" class="tf-lnk" onclick="TF.mais()">' + (S.maisAberto ? '− menos opções' : '+ mais opções (notas, turma, data, outro setor)') + '</button>';
       if (S.maisAberto) h += '<div class="tf-mais"><div><label>Notas / orientações</label><textarea id="tfNovoNotas"></textarea></div>' +
         '<div class="tf-row2"><div><label>Turma (opcional)</label>' + pickTurma('tfNovoTurma') + '</div>' +
         '<div><label>Formatura (opcional)</label><select id="tfNovoCol"><option value="">—</option>' + S.colacoes.map(function (c) { return '<option value="' + c.id + '">' + esc(c.rot) + '</option>'; }).join('') + '</select></div></div>' +
-        '<div><label>Setor responsável</label><select id="tfNovoSetor">' + optSetores(C.setorId) + '</select></div></div>';
+        '<div class="tf-row2"><div><label>Setor responsável</label><select id="tfNovoSetor">' + optSetores(C.setorId) + '</select></div>' +
+        '<div><label>Fazer a partir de (opcional)</label><input type="date" id="tfNovoData"></div></div></div>';
     }
     return h;
   }
@@ -266,14 +293,17 @@
     if (idTurma === -1) { toast('Toque na turma na lista de resultados.', true); return; }
     var idCol = $('tfNovoCol') && $('tfNovoCol').value ? Number($('tfNovoCol').value) : null;
     var setor = $('tfNovoSetor') ? Number($('tfNovoSetor').value) : C.setorId;
+    var dtIni = $('tfNovoData') ? dataOk($('tfNovoData').value) : null;
+    if ($('tfNovoData') && $('tfNovoData').value && !dtIni) { toast('A data precisa ser depois de hoje. Deixe em branco para entrar na fila agora.', true); return; }
     try {
       var r = await db().from('FormTarefa').insert({ Titulo: tit, Notas: notas, IdSetorDono: C.setorId, IdTurma: idTurma, IdColacao: idCol, Simples: true }).select('id').single();
       if (r.error) throw r.error;
-      var e = await db().from('FormTarefaEtapa').insert({ IdTarefa: r.data.id, Titulo: tit, Notas: notas, IdSetor: setor, Ordem: 1, JuntoComAnterior: false, Posicao: posMax(setor) + 1, CriadaPorSetor: C.setorId });
+      var e = await db().from('FormTarefaEtapa').insert({ IdTarefa: r.data.id, Titulo: tit, Notas: notas, IdSetor: setor, Ordem: 1, JuntoComAnterior: false, Posicao: posMax(setor) + 1, CriadaPorSetor: C.setorId, DataInicio: dtIni });
       if (e.error) { await db().from('FormTarefa').delete().eq('id', r.data.id); throw e.error; }
     } catch (x) { toast('Erro ao criar: ' + (x.message || x), true); return; }
     S.maisAberto = false;
     await TF.abrir('fila');
+    if (dtIni) toast('Agendada para ' + dataBR(dtIni) + '.');
     if ($('tfNovoTit')) $('tfNovoTit').focus();
   };
 
@@ -281,15 +311,17 @@
   function minhasAbertas() { return S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(C.setorId) && e.Situacao === 'aberta'; }); }
   function htmlFila() {
     var ab = minhasAbertas();
-    var lib = ab.filter(function (e) { return e.Liberada; }).sort(function (a, b) { return Number(a.Posicao) - Number(b.Posicao) || a.id - b.id; });
-    var esp = ab.filter(function (e) { return !e.Liberada; });
+    var lib = ab.filter(function (e) { return e.Liberada && !agendada(e); }).sort(function (a, b) { return Number(a.Posicao) - Number(b.Posicao) || a.id - b.id; });
+    var esp = ab.filter(function (e) { return !e.Liberada && !agendada(e); });
+    var nag = ab.filter(agendada).length;
     var hoje = diaLocal(Date.now());
     var feitas = S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(C.setorId) && e.Situacao === 'concluida' && e.ConcluidaEm && diaLocal(e.ConcluidaEm) === hoje; }).length;
-    var h = '<div class="tf-cont">' + feitas + ' de ' + (feitas + lib.length) + ' feitas hoje</div>';
+    var h = '<div class="tf-cont">' + feitas + ' de ' + (feitas + lib.length) + ' feitas hoje' + (nag ? ' · <button type="button" class="tf-lnk" onclick="TF.abrir(\'agend\')">🗓 ' + nag + (nag === 1 ? ' agendada' : ' agendadas') + '</button>' : '') + '</div>';
     if (!lib.length) h += '<p class="tf-vazio">Nenhuma tarefa na fila. Digite acima para adicionar.</p>';
     else h += '<div id="tfFilaLista">' + lib.map(function (e) {
       return '<div class="tf-item" data-id="' + e.id + '"><button type="button" class="tf-circ" title="Concluir" onclick="TF.concluir(' + e.id + ', this)"></button>' +
         '<div class="tf-corpo" onclick="TF.detalhe(' + e.IdTarefa + ')"><div class="tf-tit">' + esc(e.Titulo) + '</div><div class="tf-sub">' + ctxTarefa(e) + '</div></div>' +
+        '<button type="button" class="tf-ico" title="Adiar para uma data" onclick="TF.adiar(' + e.id + ')">🗓</button>' +
         '<button type="button" class="tf-ico" title="Mandar para o final da fila" onclick="TF.final(' + e.id + ')">⤓</button>' +
         '<span class="tf-alca" title="Arrastar para reordenar" onpointerdown="TF.arrastar(event)">☰</span></div>';
     }).join('') + '</div>';
@@ -298,6 +330,45 @@
     }).join('');
     return h;
   }
+  function htmlAgend() {
+    var ag = S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(C.setorId) && agendada(e); })
+      .sort(function (a, b) { return String(a.DataInicio).localeCompare(String(b.DataInicio)) || a.id - b.id; });
+    var h = '<div class="tf-cont">Tarefas guardadas para uma data. No dia marcado elas entram sozinhas no topo da sua fila.</div>';
+    if (!ag.length) return h + '<p class="tf-vazio">Nenhuma tarefa agendada. Use "mais opções" ao criar ou o botão 🗓 na fila.</p>';
+    var mes = '';
+    ag.forEach(function (e) {
+      var d = String(e.DataInicio).slice(0, 10), m = d.slice(0, 7);
+      if (m !== mes) { mes = m; h += '<div class="tf-h3">' + MESES[Number(d.slice(5, 7)) - 1] + ' de ' + d.slice(0, 4) + '</div>'; }
+      h += '<div class="tf-item"><div class="tf-corpo" onclick="TF.detalhe(' + e.IdTarefa + ')"><div class="tf-tit">' + esc(e.Titulo) + '</div><div class="tf-sub">' + ctxTarefa(e) + (e.Liberada ? '' : ' · aguardando etapa anterior') + '</div></div>' +
+        '<span class="tf-chip">🗓 ' + dataBR(d) + '</span>' +
+        '<button type="button" class="tf-ico" title="Mudar a data" onclick="TF.adiar(' + e.id + ')">✎</button></div>';
+    });
+    return h;
+  }
+  TF.adiar = function (id) {
+    var e = S.etapas.find(function (x) { return x.id === id; }); if (!e) return;
+    var amanha = new Date(Date.now() + 86400000), min = diaLocal(amanha);
+    S.adiarId = id;
+    abrirOv('<h2>' + (agendada(e) ? 'Mudar a data' : 'Adiar tarefa') + '</h2><p class="tf-sub" style="color:#6b7570;font-size:.85rem;margin:0 0 10px">' + esc(e.Titulo) + '<br>Ela sai da fila e volta sozinha, no topo, na data escolhida.</p>' +
+      '<div><label>Fazer a partir de</label><input type="date" id="tfAdData" min="' + min + '" value="' + (agendada(e) ? String(e.DataInicio).slice(0, 10) : '') + '"></div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><button type="button" class="tf-btn" onclick="TF.adiarSalvar()">Salvar</button>' +
+      (agendada(e) ? '<button type="button" class="tf-btn2" onclick="TF.adiarTirar()">Tirar a data (volta para a fila agora)</button>' : '') +
+      '<button type="button" class="tf-btn2" onclick="TF.fechar()">Cancelar</button></div>');
+    $('tfAdData').focus();
+  };
+  TF.adiarSalvar = async function () {
+    var v = dataOk($('tfAdData').value);
+    if (!v) { toast('Escolha uma data depois de hoje.', true); return; }
+    var r = await db().from('FormTarefaEtapa').update({ DataInicio: v }).eq('id', S.adiarId);
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    TF.fechar(); await TF.abrir(S.aba); toast('Agendada para ' + dataBR(v) + '.');
+  };
+  TF.adiarTirar = async function () {
+    var e = S.etapas.find(function (x) { return x.id === S.adiarId; });
+    var r = await db().from('FormTarefaEtapa').update({ DataInicio: null, Posicao: posMin(e ? e.IdSetor : C.setorId, S.adiarId) - 1 }).eq('id', S.adiarId);
+    if (r.error) { toast('Erro: ' + r.error.message, true); return; }
+    TF.fechar(); await TF.abrir(S.aba === 'agend' ? 'fila' : S.aba);
+  };
   TF.concluir = async function (id, btn) {
     var item = btn && btn.closest('.tf-item'); if (item) item.classList.add('tf-feito');
     var r = await db().rpc('tarefa_concluir_etapa', { p_etapa: id });
@@ -369,13 +440,14 @@
     var lista = S.setores.filter(function (s) { return !S.filtroSetor || String(s.idSetor) === String(S.filtroSetor); });
     lista.forEach(function (s) {
       var ab = S.etapas.filter(function (e) { return Number(e.IdSetor) === Number(s.idSetor) && e.Situacao === 'aberta'; });
-      var lib = ab.filter(function (e) { return e.Liberada; }).sort(function (a, b) { return Number(a.Posicao) - Number(b.Posicao) || a.id - b.id; });
-      var esp = ab.filter(function (e) { return !e.Liberada; });
-      h += '<div class="tf-h3">' + esc(s.NomeSetor) + ' — ' + lib.length + ' na fila' + (esp.length ? ', ' + esp.length + ' em breve' : '') + '</div>';
+      var lib = ab.filter(function (e) { return e.Liberada && !agendada(e); }).sort(function (a, b) { return Number(a.Posicao) - Number(b.Posicao) || a.id - b.id; });
+      var esp = ab.filter(function (e) { return !e.Liberada && !agendada(e); });
+      var agd = ab.filter(agendada).sort(function (a, b) { return String(a.DataInicio).localeCompare(String(b.DataInicio)); });
+      h += '<div class="tf-h3">' + esc(s.NomeSetor) + ' — ' + lib.length + ' na fila' + (esp.length ? ', ' + esp.length + ' em breve' : '') + (agd.length ? ', ' + agd.length + ' agendada' + (agd.length > 1 ? 's' : '') : '') + '</div>';
       if (!ab.length) { h += '<div class="tf-vazio" style="padding:6px 4px">Sem tarefas abertas.</div>'; return; }
-      h += lib.concat(esp).map(function (e) {
-        var d = dias(e.created_at), cls = d >= 3 && e.Liberada ? 'atr' : (e.Liberada ? '' : 'esp');
-        return '<div class="tf-item"><div class="tf-corpo" onclick="TF.detalhe(' + e.IdTarefa + ')"><div class="tf-tit"' + (e.Liberada ? '' : ' style="color:#6b7570"') + '>' + esc(e.Titulo) + '</div><div class="tf-sub">' + ctxTarefa(e).replace(/^/, '') + '</div></div><span class="tf-chip ' + cls + '">' + (e.Liberada ? (d === 0 ? 'hoje' : d + 'd aberta') : 'aguardando') + '</span></div>';
+      h += lib.concat(esp, agd).map(function (e) {
+        var ag = agendada(e), d = dias(e.created_at), cls = ag ? 'esp' : (d >= 3 && e.Liberada ? 'atr' : (e.Liberada ? '' : 'esp'));
+        return '<div class="tf-item"><div class="tf-corpo" onclick="TF.detalhe(' + e.IdTarefa + ')"><div class="tf-tit"' + (e.Liberada && !ag ? '' : ' style="color:#6b7570"') + '>' + esc(e.Titulo) + '</div><div class="tf-sub">' + ctxTarefa(e).replace(/^/, '') + '</div></div><span class="tf-chip ' + cls + '">' + (ag ? '🗓 ' + dataBR(e.DataInicio) : (e.Liberada ? (d === 0 ? 'hoje' : d + 'd aberta') : 'aguardando')) + '</span></div>';
       }).join('');
     });
     return h;
@@ -417,7 +489,7 @@
   var EL = [];
   function abrirDlgEtapas(tit) {
     S.detalheId = null; S.sel = {};
-    EL = [{ tit: '', setor: C.setorId, notas: '', junto: false }];
+    EL = [{ tit: '', setor: C.setorId, notas: '', junto: false, data: '' }];
     abrirOv('<h2>Nova tarefa com etapas</h2><p class="tf-sub0" style="color:#6b7570;font-size:.85rem;margin:0 0 10px">Cada etapa vai para a fila do setor responsável quando chegar a vez dela.</p>' +
       '<div><label>Título da tarefa</label><input type="text" id="tfDlgTit"></div>' +
       '<div style="margin-top:8px"><label>Notas / orientações</label><textarea id="tfDlgNotas"></textarea></div>' +
@@ -435,6 +507,7 @@
       if (!EL[i]) return;
       EL[i].tit = b.querySelector('.f-tit').value; EL[i].setor = Number(b.querySelector('.f-setor').value); EL[i].notas = b.querySelector('.f-notas').value;
       var j = b.querySelector('.f-junto'); EL[i].junto = j ? j.checked : false;
+      var dd = b.querySelector('.f-data'); EL[i].data = dd ? dd.value : '';
     });
   }
   function elRender() {
@@ -442,16 +515,18 @@
       return '<div class="tf-form-et"><div style="display:flex;justify-content:space-between"><b style="color:#2f6b4f;font-size:.85rem">Etapa ' + (i + 1) + '</b>' + (EL.length > 1 ? '<button type="button" class="tf-lnk" onclick="TF.elDel(' + i + ')">remover</button>' : '') + '</div>' +
         '<input type="text" class="f-tit" placeholder="O que precisa ser feito" value="' + esc(e.tit) + '">' +
         '<div class="tf-row2"><select class="f-setor">' + optSetores(e.setor) + '</select><input type="text" class="f-notas" placeholder="Notas (opcional)" value="' + esc(e.notas) + '"></div>' +
+        '<div><label>Fazer a partir de (opcional)</label><input type="date" class="f-data" value="' + esc(e.data || '') + '"></div>' +
         (i > 0 ? '<label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" class="f-junto" style="width:auto"' + (e.junto ? ' checked' : '') + '> começa junto com a etapa anterior (senão, espera ela terminar)</label>' : '') + '</div>';
     }).join('');
   }
-  TF.elAdd = function () { elLer(); EL.push({ tit: '', setor: C.setorId, notas: '', junto: false }); elRender(); };
+  TF.elAdd = function () { elLer(); EL.push({ tit: '', setor: C.setorId, notas: '', junto: false, data: '' }); elRender(); };
   TF.elDel = function (i) { elLer(); EL.splice(i, 1); elRender(); };
   TF.elSalvar = async function () {
     elLer();
     var tit = $('tfDlgTit').value.trim();
     if (!tit) { toast('Informe o título da tarefa.', true); return; }
     if (EL.some(function (e) { return !e.tit.trim(); })) { toast('Preencha o título de todas as etapas.', true); return; }
+    if (EL.some(function (e) { return e.data && !dataOk(e.data); })) { toast('As datas precisam ser depois de hoje. Deixe em branco para entrar na fila agora.', true); return; }
     var idTurma = turmaDoCampo('tfDlgTurma'); if (idTurma === -1) { toast('Toque na turma na lista de resultados.', true); return; }
     var idCol = $('tfDlgCol').value ? Number($('tfDlgCol').value) : null;
     try {
@@ -460,7 +535,7 @@
       var cont = {};
       var linhas = EL.map(function (e, i) {
         cont[e.setor] = (cont[e.setor] || posMax(e.setor)) + 1;
-        return { IdTarefa: r.data.id, Titulo: e.tit.trim(), Notas: e.notas.trim() || null, IdSetor: e.setor, Ordem: i + 1, JuntoComAnterior: i > 0 && !!e.junto, Posicao: cont[e.setor], CriadaPorSetor: C.setorId };
+        return { IdTarefa: r.data.id, Titulo: e.tit.trim(), Notas: e.notas.trim() || null, IdSetor: e.setor, Ordem: i + 1, JuntoComAnterior: i > 0 && !!e.junto, Posicao: cont[e.setor], CriadaPorSetor: C.setorId, DataInicio: dataOk(e.data) };
       });
       var er = await db().from('FormTarefaEtapa').insert(linhas);
       if (er.error) { await db().from('FormTarefa').delete().eq('id', r.data.id); throw er.error; }
@@ -482,8 +557,8 @@
     h += l.map(function (e, i) {
       var pode = e.Situacao === 'aberta' && e.Liberada && (C.admin || Number(e.IdSetor) === Number(C.setorId) || dono);
       var podeEd = dono || Number(e.IdSetor) === Number(C.setorId);
-      var st = e.Situacao === 'concluida' ? '<span class="tf-chip ok">✓ concluída ' + dataBR(diaLocal(e.ConcluidaEm)) + '</span>' : (e.Liberada ? '<span class="tf-chip">na fila de ' + esc(nomeSetor(e.IdSetor)) + '</span>' : '<span class="tf-chip esp">aguardando etapa anterior</span>');
-      if (S.edEtapa === e.id) return '<div class="tf-et"><input type="text" id="tfEdTit" value="' + esc(e.Titulo) + '"><div style="margin-top:6px"><textarea id="tfEdNotas">' + esc(e.Notas || '') + '</textarea></div><div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="tf-btn2" onclick="TF.salvarEtapa(' + e.id + ')">Salvar</button><button type="button" class="tf-btn2" onclick="TF.editarEtapa(null)">Cancelar</button></div></div>';
+      var st = e.Situacao === 'concluida' ? '<span class="tf-chip ok">✓ concluída ' + dataBR(diaLocal(e.ConcluidaEm)) + '</span>' : (agendada(e) ? '<span class="tf-chip">🗓 agendada para ' + dataBR(String(e.DataInicio).slice(0, 10)) + ' · ' + esc(nomeSetor(e.IdSetor)) + (e.Liberada ? '' : ' · aguardando etapa anterior') + '</span>' : (e.Liberada ? '<span class="tf-chip">na fila de ' + esc(nomeSetor(e.IdSetor)) + '</span>' : '<span class="tf-chip esp">aguardando etapa anterior</span>'));
+      if (S.edEtapa === e.id) return '<div class="tf-et"><input type="text" id="tfEdTit" value="' + esc(e.Titulo) + '"><div style="margin-top:6px"><textarea id="tfEdNotas">' + esc(e.Notas || '') + '</textarea></div>' + (e.Situacao === 'aberta' ? '<div style="margin-top:6px"><label>Fazer a partir de (opcional — deixe em branco para entrar na fila)</label><input type="date" id="tfEdData" value="' + (agendada(e) ? esc(String(e.DataInicio).slice(0, 10)) : '') + '"></div>' : '') + '<div style="display:flex;gap:8px;margin-top:8px"><button type="button" class="tf-btn2" onclick="TF.salvarEtapa(' + e.id + ')">Salvar</button><button type="button" class="tf-btn2" onclick="TF.editarEtapa(null)">Cancelar</button></div></div>';
       return '<div class="tf-et' + (e.Liberada && e.Situacao === 'aberta' ? ' lib' : '') + (e.Situacao === 'concluida' ? ' fim' : '') + '"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><div><b>' + (i + 1) + '. ' + esc(e.Titulo) + '</b><div style="margin-top:3px">' + st + (i > 0 && e.JuntoComAnterior ? ' <span class="tf-chip esp">junto com a anterior</span>' : '') + '</div></div></div>' +
         (e.Notas ? '<div style="white-space:pre-wrap;font-size:.85rem;color:#4a544f;margin-top:6px">' + esc(e.Notas) + '</div>' : '') +
         '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">' +
@@ -493,6 +568,7 @@
         (dono ? '<button type="button" class="tf-lnk" style="color:#b3261e" onclick="TF.excluirEtapa(' + e.id + ')">excluir etapa</button>' : '') + '</div></div>';
     }).join('');
     h += '<div class="tf-h3">Pedir uma etapa</div><div class="tf-form-et"><input type="text" id="tfNeTit" placeholder="O que precisa ser feito"><div class="tf-row2"><select id="tfNeSetor">' + optSetores(C.setorId) + '</select><input type="text" id="tfNeNotas" placeholder="Notas (opcional)"></div>' +
+      '<div><label>Fazer a partir de (opcional)</label><input type="date" id="tfNeData"></div>' +
       '<label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" id="tfNeJunto" style="width:auto"> começa junto com a última etapa (senão, espera ela terminar)</label>' +
       '<div><button type="button" class="tf-btn2" onclick="TF.addEtapa()">Adicionar etapa</button></div></div>';
     if (dono) {
@@ -510,7 +586,13 @@
   TF.editarEtapa = function (id) { S.edEtapa = id; renderDetalhe(); };
   TF.salvarEtapa = async function (id) {
     var tit = $('tfEdTit').value.trim(); if (!tit) { toast('O título não pode ficar vazio.', true); return; }
-    var r = await db().from('FormTarefaEtapa').update({ Titulo: tit, Notas: $('tfEdNotas').value.trim() || null }).eq('id', id);
+    var up = { Titulo: tit, Notas: $('tfEdNotas').value.trim() || null };
+    if ($('tfEdData')) {
+      var ee = S.etapas.find(function (x) { return x.id === id; }), nd = dataOk($('tfEdData').value);
+      if ($('tfEdData').value && !nd && agendada(ee)) { toast('A data precisa ser depois de hoje (ou deixe em branco).', true); return; }
+      if (nd || agendada(ee)) { up.DataInicio = nd; if (!nd) up.Posicao = posMin(ee.IdSetor, id) - 1; }
+    }
+    var r = await db().from('FormTarefaEtapa').update(up).eq('id', id);
     if (r.error) { toast('Erro: ' + r.error.message, true); return; }
     S.edEtapa = null; await carregar(); renderDetalhe(); render();
   };
@@ -518,7 +600,7 @@
     var tit = $('tfNeTit').value.trim(); if (!tit) { toast('Informe o que precisa ser feito.', true); return; }
     var setor = Number($('tfNeSetor').value), l = etapasDe(S.detalheId);
     var ordem = l.length ? Math.max.apply(null, l.map(function (e) { return e.Ordem; })) + 1 : 1;
-    var r = await db().from('FormTarefaEtapa').insert({ IdTarefa: S.detalheId, Titulo: tit, Notas: $('tfNeNotas').value.trim() || null, IdSetor: setor, Ordem: ordem, JuntoComAnterior: l.length > 0 && $('tfNeJunto').checked, Posicao: posMax(setor) + 1, CriadaPorSetor: C.setorId });
+    var r = await db().from('FormTarefaEtapa').insert({ IdTarefa: S.detalheId, Titulo: tit, Notas: $('tfNeNotas').value.trim() || null, IdSetor: setor, Ordem: ordem, JuntoComAnterior: l.length > 0 && $('tfNeJunto').checked, Posicao: posMax(setor) + 1, CriadaPorSetor: C.setorId, DataInicio: dataOk($('tfNeData').value) });
     if (r.error) { toast('Erro: ' + r.error.message, true); return; }
     // se a tarefa estava concluída, volta a ficar aberta
     var t = S.tarefas[S.detalheId], up = {};
