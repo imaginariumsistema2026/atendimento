@@ -1,0 +1,31 @@
+{
+  "name": "Contatos Imaginarium",
+  "short_name": "Contatos",
+  "description": "Consulta de contatos das turmas - Imaginarium",
+  "start_url": "./contatos.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f6f5f2",
+  "theme_color": "#2f6b4f",
+  "icons": [
+    {
+      "src": "contatos-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "contatos-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "contatos-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contatos</title>
+<meta name="theme-color" content="#2f6b4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Contatos">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest-contatos.json">
+<link rel="apple-touch-icon" href="apple-touch-contatos.png">
+<link rel="icon" type="image/png" href="contatos-192.png">
+<style>
+  :root { --bg:#f6f5f2; --panel:#fff; --ink:#1f2a24; --muted:#6b7570; --line:#dfe0da; --accent:#2f6b4f; --accent-dark:#234f3a; --soft:#e8f1ec; --warn:#a4442d; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); min-height:100dvh; font-size:16px; }
+  button, input, select, textarea { font:inherit; color:inherit; }
+  .wrap { max-width:640px; margin:0 auto; padding:max(10px,env(safe-area-inset-top)) 12px max(28px,env(safe-area-inset-bottom)); }
+  h1 { font-size:1.25rem; margin:6px 0 10px; }
+  .top { position:sticky; top:0; z-index:5; background:var(--bg); padding-bottom:8px; }
+  input[type=text], input[type=search], input[type=tel], input[type=date], select, textarea { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; font-size:16px; }
+  textarea { min-height:84px; resize:vertical; }
+  .row { display:flex; gap:8px; }
+  .row > * { flex:1; min-width:0; }
+  .filtros { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 11px; font-size:.85rem; cursor:pointer; }
+  .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .barra { display:flex; justify-content:space-between; align-items:center; margin:10px 2px 6px; font-size:.85rem; color:var(--muted); }
+  .link { background:none; border:0; color:var(--accent); font-weight:600; padding:6px 2px; cursor:pointer; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:10px; }
+  .turma { cursor:pointer; }
+  .turma:active { background:var(--soft); }
+  .t1 { font-weight:700; }
+  .t2 { color:var(--muted); font-size:.88rem; margin-top:2px; }
+  .badge { display:inline-block; font-size:.74rem; font-weight:700; padding:2px 9px; border-radius:999px; background:#eceae4; color:#444; white-space:nowrap; }
+  .b-Imaginarium { background:var(--accent); color:#fff; }
+  .b-Negociação, .b-Aguardando { background:#f3e3b8; color:#6b4a00; }
+  .b-Pegar { background:#d9e8f7; color:#1d4a75; }
+  .linha { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .ult { margin-top:8px; font-size:.86rem; color:#394540; border-left:3px solid var(--line); padding-left:8px; }
+  .ult b { color:var(--muted); font-weight:600; }
+  .vazio { text-align:center; color:var(--muted); padding:26px 8px; }
+  /* detalhe */
+  #detalhe { position:fixed; inset:0; background:var(--bg); z-index:20; overflow-y:auto; display:none; }
+  #detalhe.on { display:block; }
+  .dh { position:sticky; top:0; background:var(--bg); padding:max(8px,env(safe-area-inset-top)) 0 8px; z-index:2; }
+  .voltar { background:none; border:0; font-size:1rem; color:var(--accent); font-weight:700; padding:8px 0; cursor:pointer; }
+  .acoes { display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+  .btn { border:1px solid var(--accent); background:var(--accent); color:#fff; border-radius:10px; padding:10px 14px; font-weight:600; cursor:pointer; text-decoration:none; text-align:center; display:inline-block; }
+  .btn.sec { background:#fff; color:var(--accent); }
+  .btn.peq { padding:7px 11px; font-size:.9rem; }
+  .btn.perigo { background:#fff; color:var(--warn); border-color:var(--warn); }
+  .nome { font-weight:700; font-size:1.02rem; }
+  .whats { color:var(--muted); font-size:.9rem; margin-top:2px; }
+  .inativo { opacity:.55; }
+  .hist-item { border-top:1px solid var(--line); padding:8px 0; font-size:.9rem; }
+  .hist-item .d { color:var(--muted); font-size:.8rem; font-weight:600; }
+  .form { background:var(--soft); border-radius:12px; padding:10px; margin-top:10px; display:grid; gap:8px; }
+  .msg { font-size:.85rem; color:var(--accent-dark); min-height:1em; }
+  .msg.erro { color:var(--warn); }
+  /* pin */
+  #pin { position:fixed; inset:0; background:var(--bg); z-index:50; display:none; align-items:center; justify-content:center; padding:20px; }
+  #pin.on { display:flex; }
+  #pin .box { background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px 20px; width:100%; max-width:320px; text-align:center; }
+  #pinIn { text-align:center; letter-spacing:.5em; font-size:1.6rem; }
+  .oculto { display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="pin">
+  <div class="box">
+    <h1>Contatos</h1>
+    <p style="color:var(--muted);margin:0 0 14px">Digite o PIN</p>
+    <input id="pinIn" type="tel" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••">
+    <div id="pinMsg" class="msg erro" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app">
+  <div class="top">
+    <h1>Contatos das turmas</h1>
+    <input id="busca" type="search" placeholder="Buscar turma, contato ou Whats...">
+    <div class="filtros">
+      <select id="fFac"><option value="">Faculdade</option></select>
+      <select id="fCur"><option value="">Curso</option></select>
+      <select id="fSem"><option value="">Semestre</option></select>
+      <select id="fTur"><option value="">Turno</option></select>
+    </div>
+    <div class="chips" id="chipsCond"></div>
+  </div>
+  <div class="barra">
+    <span id="resumo">Carregando...</span>
+    <span>
+      <label style="font-size:.85rem"><input type="checkbox" id="soComContato"> só com contato</label>
+      &nbsp;<button class="link" id="limpar">Limpar</button>
+    </span>
+  </div>
+  <div id="lista"></div>
+</div>
+
+<div id="detalhe"><div class="wrap" id="detConteudo"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://gqgxekjcmnostlxgfvlg.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_UBuz0ZvBKbFmGR9JCNCwEw_nlo4xIDc';
+  var PIN = '1085';
+  var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  var turmas = [];            // linhas de turma
+  var contatosPorTurma = {};  // idTurma -> [formando]
+  var histPorContato = {};    // idFormando -> [hist] (mais recente primeiro)
+  var condSel = {};           // condições marcadas
+  var LIMITE = 80, mostrar = LIMITE;
+  var turmaAberta = null, verInativos = false, verHistTurma = false, abertoContato = null, editando = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function fmtData(s) { if (!s) return ''; var p = String(s).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s; }
+  function hoje() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+  function normWhats(raw) {
+    if (!raw) return null;
+    var d = String(raw).replace(/\D/g, '');
+    if (!d) return null;
+    if (d.indexOf('55') === 0 && (d.length === 12 || d.length === 13)) return d;
+    if (d.length === 11) return '55' + d;
+    if (d.length === 9) return '5548' + d;
+    if (d.length === 8) return '55489' + d;
+    return '55' + d;
+  }
+  function fmtWhats(w) {
+    if (!w) return '';
+    var d = String(w).replace(/\D/g, '');
+    if (d.indexOf('55') === 0 && d.length === 13) return '(' + d.slice(2, 4) + ') ' + d.slice(4, 9) + '-' + d.slice(9);
+    if (d.indexOf('55') === 0 && d.length === 12) return '(' + d.slice(2, 4) + ') ' + d.slice(4, 8) + '-' + d.slice(8);
+    return w;
+  }
+  function nomeContato(f) { return [f.FormandoNome, f.FormandoSobrenome].filter(Boolean).join(' ') || '(sem nome)'; }
+  function badgeClasse(c) { return 'b-' + String(c || '').split(' ')[0]; }
+
+  /* ---------- PIN ---------- */
+  function iniciar() {
+    if (lsGet('ctPinOk') === '1') { $('pin').classList.remove('on'); carregar(); return; }
+    $('pin').classList.add('on');
+    $('app').classList.add('oculto');
+    $('pinIn').focus();
+  }
+  $('pinIn').addEventListener('input', function () {
+    var v = this.value.replace(/\D/g, '');
+    this.value = v;
+    if (v.length === 4) {
+      if (v === PIN) { lsSet('ctPinOk', '1'); $('pin').classList.remove('on'); $('app').classList.remove('oculto'); carregar(); }
+      else { $('pinMsg').textContent = 'PIN incorreto.'; this.value = ''; }
+    } else { $('pinMsg').textContent = ''; }
+  });
+
+  /* ---------- Carga ---------- */
+  async function pagina(montar) {
+    var tudo = [], passo = 1000;
+    for (var ini = 0; ; ini += passo) {
+      var r = await montar().range(ini, ini + passo - 1);
+      if (r.error) throw r.error;
+      tudo = tudo.concat(r.data || []);
+      if (!r.data || r.data.length < passo) break;
+    }
+    return tudo;
+  }
+  async function mapa(tab, id, nome) {
+    var r = await db.from(tab).select(id + ', ' + nome);
+    var m = {}; (r.data || []).forEach(function (x) { m[x[id]] = x[nome]; }); return m;
+  }
+  async function carregar() {
+    $('resumo').textContent = 'Carregando...';
+    try {
+      var res = await Promise.all([
+        pagina(function () { return db.from('FormTurma').select('idTurma, IdFaculdade, IdCurso, IdTurno, IdSemestre, Identificacao, Condicao, DataProximoContato, ExpectativaFormandos').order('idTurma'); }),
+        mapa('FormFaculdade', 'IdFaculdade', 'NomeFaculdade'),
+        mapa('FormCurso', 'idCurso', 'NomeCurso'),
+        mapa('FormTurno', 'idturno', 'NomeTurno'),
+        mapa('FormSemestre', 'idSemestre', 'NomeSemestre'),
+        pagina(function () { return db.from('FormFormandoHistoricoContato').select('idHistorico, IdFormando, DataOriginalPlanilha, TextoObservacao, DataRegistro').order('idHistorico'); })
+      ]);
+      var ts = res[0], mf = res[1], mc = res[2], mt = res[3], ms = res[4], hs = res[5];
+
+      histPorContato = {};
+      hs.forEach(function (h) { (histPorContato[h.IdFormando] = histPorContato[h.IdFormando] || []).push(h); });
+      Object.keys(histPorContato).forEach(function (k) { histPorContato[k].sort(cmpHist); });
+
+      var ids = Object.keys(histPorContato).map(Number), formandos = [];
+      for (var i = 0; i < ids.length; i += 150) {
+        var r = await db.from('FormFormando').select('idFormando, IdTurma, FormandoNome, FormandoSobrenome, Whats, FormAtivo').in('idFormando', ids.slice(i, i + 150));
+        if (r.error) throw r.error;
+        formandos = formandos.concat(r.data || []);
+      }
+      contatosPorTurma = {};
+      formandos.forEach(function (f) { (contatosPorTurma[f.IdTurma] = contatosPorTurma[f.IdTurma] || []).push(f); });
+
+      turmas = ts.map(function (t) {
+        var id = t.Identificacao ? String(t.Identificacao).trim() : '';
+        var cur = mc[t.IdCurso] || '—';
+        if (id) cur += ' (' + (id.length <= 2 ? 'Turma ' + id : id) + ')';
+        return { id: t.idTurma, fac: mf[t.IdFaculdade] || '—', cur: cur, tur: mt[t.IdTurno] || '—', sem: ms[t.IdSemestre] || '—',
+                 cond: t.Condicao || '', prox: t.DataProximoContato, exp: t.ExpectativaFormandos };
+      });
+      turmas.sort(function (a, b) {
+        return a.fac.localeCompare(b.fac, 'pt-BR') || a.cur.localeCompare(b.cur, 'pt-BR') || a.sem.localeCompare(b.sem, 'pt-BR', { numeric: true });
+      });
+      montarFiltros();
+      render();
+    } catch (e) {
+      $('resumo').textContent = 'Erro ao carregar: ' + (e.message || e);
+    }
+  }
+  function cmpHist(a, b) {
+    var da = a.DataOriginalPlanilha || String(a.DataRegistro || '').slice(0, 10);
+    var dbb = b.DataOriginalPlanilha || String(b.DataRegistro || '').slice(0, 10);
+    if (da !== dbb) return da < dbb ? 1 : -1;
+    return (b.idHistorico || 0) - (a.idHistorico || 0);
+  }
+
+  /* ---------- Filtros ---------- */
+  function opcoes(id, valores, rotulo) {
+    var sel = $(id), atual = sel.value;
+    var u = Array.from(new Set(valores.filter(function (v) { return v && v !== '—'; })));
+    u.sort(function (a, b) { return String(a).localeCompare(String(b), 'pt-BR', { numeric: true }); });
+    sel.innerHTML = '<option value="">' + rotulo + '</option>' + u.map(function (v) { return '<option>' + esc(v) + '</option>'; }).join('');
+    if (atual && u.indexOf(atual) >= 0) sel.value = atual;
+  }
+  function montarFiltros() {
+    opcoes('fFac', turmas.map(function (t) { return t.fac; }), 'Faculdade');
+    opcoes('fCur', turmas.map(function (t) { return t.cur.replace(/ \(.*\)$/, ''); }), 'Curso');
+    opcoes('fSem', turmas.map(function (t) { return t.sem; }), 'Semestre');
+    opcoes('fTur', turmas.map(function (t) { return t.tur; }), 'Turno');
+    var conds = Array.from(new Set(turmas.map(function (t) { return t.cond || '(sem condição)'; })));
+    conds.sort(function (a, b) { return a.localeCompare(b, 'pt-BR'); });
+    $('chipsCond').innerHTML = conds.map(function (c) {
+      return '<button class="chip' + (condSel[c] ? ' on' : '') + '" data-c="' + esc(c) + '">' + esc(c) + '</button>';
+    }).join('');
+  }
+  $('chipsCond').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip'); if (!b) return;
+    var c = b.getAttribute('data-c');
+    if (condSel[c]) delete condSel[c]; else condSel[c] = true;
+    b.classList.toggle('on'); mostrar = LIMITE; render();
+  });
+  ['fFac', 'fCur', 'fSem', 'fTur', 'soComContato'].forEach(function (id) { $(id).addEventListener('change', function () { mostrar = LIMITE; render(); }); });
+  $('busca').addEventListener('input', function () { mostrar = LIMITE; render(); });
+  $('limpar').addEventListener('click', function () {
+    ['fFac', 'fCur', 'fSem', 'fTur'].forEach(function (id) { $(id).value = ''; });
+    $('busca').value = ''; $('soComContato').checked = false; condSel = {};
+    Array.prototype.forEach.call(document.querySelectorAll('#chipsCond .chip'), function (c) { c.classList.remove('on'); });
+    mostrar = LIMITE; render();
+  });
+
+  function ativosDe(idTurma) { return (contatosPorTurma[idTurma] || []).filter(function (f) { return f.FormAtivo !== false; }); }
+  function ultimaConversa(idTurma) {
+    var melhor = null, quem = null;
+    (contatosPorTurma[idTurma] || []).forEach(function (f) {
+      var h = (histPorContato[f.idFormando] || [])[0]; if (!h) return;
+      if (!melhor || cmpHist(h, melhor) < 0) { melhor = h; quem = f; }
+    });
+    return melhor ? { h: melhor, f: quem } : null;
+  }
+  function filtradas() {
+    var fac = $('fFac').value, cur = $('fCur').value, sem = $('fSem').value, tur = $('fTur').value;
+    var q = norm($('busca').value.trim()), so = $('soComContato').checked;
+    var temCond = Object.keys(condSel).length > 0;
+    return turmas.filter(function (t) {
+      if (fac && t.fac !== fac) return false;
+      if (cur && t.cur.replace(/ \(.*\)$/, '') !== cur) return false;
+      if (sem && t.sem !== sem) return false;
+      if (tur && t.tur !== tur) return false;
+      if (temCond && !condSel[t.cond || '(sem condição)']) return false;
+      if (so && ativosDe(t.id).length === 0) return false;
+      if (q) {
+        var alvo = norm(t.fac + ' ' + t.cur + ' ' + t.tur + ' ' + t.sem + ' ' + t.cond);
+        var nums = q.replace(/\D/g, '');
+        var ok = q.split(/\s+/).every(function (p) { return alvo.indexOf(p) >= 0; });
+        if (!ok) {
+          ok = (contatosPorTurma[t.id] || []).some(function (f) {
+            return norm(nomeContato(f)).indexOf(q) >= 0 || (nums.length >= 4 && String(f.Whats || '').indexOf(nums) >= 0);
+          });
+        }
+        if (!ok) return false;
+      }
+      return true;
+    });
+  }
+
+  function render() {
+    var lista = filtradas();
+    var tot = lista.reduce(function (s, t) { return s + ativosDe(t.id).length; }, 0);
+    $('resumo').textContent = lista.length + ' turma(s) · ' + tot + ' contato(s)';
+    if (!lista.length) { $('lista').innerHTML = '<div class="vazio">Nenhuma turma com esses filtros.</div>'; return; }
+    var html = lista.slice(0, mostrar).map(function (t) {
+      var at = ativosDe(t.id), u = ultimaConversa(t.id), x = '';
+      if (u) x = '<div class="ult"><b>' + fmtData(u.h.DataOriginalPlanilha || u.h.DataRegistro) + ' · ' + esc(nomeContato(u.f)) + '</b><br>' + esc(String(u.h.TextoObservacao || '').slice(0, 140)) + '</div>';
+      return '<div class="card turma" data-id="' + t.id + '">' +
+        '<div class="linha"><div><div class="t1">' + esc(t.fac) + ' · ' + esc(t.cur) + '</div>' +
+        '<div class="t2">' + esc(t.tur) + ' · ' + esc(t.sem) + ' · ' + at.length + ' contato(s)' + (t.prox ? ' · retorno ' + fmtData(t.prox) : '') + '</div></div>' +
+        '<span class="badge ' + badgeClasse(t.cond) + '">' + esc(t.cond || 'sem condição') + '</span></div>' + x + '</div>';
+    }).join('');
+    if (lista.length > mostrar) html += '<button class="btn sec" style="width:100%" id="maisBtn">Mostrar mais (' + (lista.length - mostrar) + ')</button>';
+    $('lista').innerHTML = html;
+    var mb = $('maisBtn'); if (mb) mb.addEventListener('click', function () { mostrar += LIMITE; render(); });
+  }
+  $('lista').addEventListener('click', function (e) {
+    var c = e.target.closest('.turma'); if (!c) return;
+    abrirTurma(Number(c.getAttribute('data-id')));
+  });
+
+  /* ---------- Detalhe da turma ---------- */
+  function abrirTurma(id) {
+    turmaAberta = id; verInativos = false; verHistTurma = false; abertoContato = null; editando = null;
+    $('detalhe').classList.add('on'); document.body.style.overflow = 'hidden';
+    renderDetalhe(); $('detalhe').scrollTop = 0;
+  }
+  function fechar() {
+    $('detalhe').classList.remove('on'); document.body.style.overflow = ''; turmaAberta = null; render();
+  }
+  function turmaPorId(id) { return turmas.filter(function (t) { return t.id === id; })[0]; }
+
+  function renderDetalhe(msg, erro) {
+    var t = turmaPorId(turmaAberta); if (!t) return;
+    var todos = contatosPorTurma[t.id] || [];
+    var lista = todos.filter(function (f) { return verInativos || f.FormAtivo !== false; });
+    var inativos = todos.filter(function (f) { return f.FormAtivo === false; }).length;
+    var h = '<div class="dh"><button class="voltar" id="voltar">‹ Voltar</button>' +
+      '<div class="linha"><div><div class="t1" style="font-size:1.1rem">' + esc(t.fac) + ' · ' + esc(t.cur) + '</div><div class="t2">' + esc(t.tur) + ' · ' + esc(t.sem) +
+      (t.exp ? ' · previstos ' + t.exp : '') + (t.prox ? ' · retorno ' + fmtData(t.prox) : '') + '</div></div>' +
+      '<span class="badge ' + badgeClasse(t.cond) + '">' + esc(t.cond || 'sem condição') + '</span></div>' +
+      '<div class="acoes"><button class="btn peq" id="novoBtn">+ Novo contato</button>' +
+      '<button class="btn sec peq" id="histTurmaBtn">' + (verHistTurma ? 'Ocultar conversas' : 'Conversas da turma') + '</button>' +
+      (inativos ? '<button class="btn sec peq" id="inatBtn">' + (verInativos ? 'Ocultar' : 'Ver') + ' inativos (' + inativos + ')</button>' : '') + '</div>' +
+      '<div class="msg' + (erro ? ' erro' : '') + '" id="dmsg" style="margin-top:6px">' + esc(msg || '') + '</div></div>';
+
+    h += '<div id="novoForm" class="form oculto">' +
+      '<input type="text" id="nNome" placeholder="Nome do contato">' +
+      '<input type="tel" id="nWhats" inputmode="tel" placeholder="Whats (com DDD)">' +
+      '<textarea id="nTexto" placeholder="Primeira conversa (opcional)"></textarea>' +
+      '<div class="row"><button class="btn" id="nSalvar">Salvar contato</button><button class="btn sec" id="nCancel">Cancelar</button></div></div>';
+
+    if (verHistTurma) h += blocoHistTurma(t, todos);
+
+    if (!lista.length) h += '<div class="vazio">Nenhum contato lançado nesta turma ainda.</div>';
+    h += lista.map(function (f) { return cardContato(f); }).join('');
+    $('detConteudo').innerHTML = h;
+  }
+
+  function blocoHistTurma(t, contatos) {
+    var itens = [];
+    contatos.forEach(function (f) { (histPorContato[f.idFormando] || []).forEach(function (x) { itens.push({ h: x, f: f }); }); });
+    itens.sort(function (a, b) { return cmpHist(a.h, b.h); });
+    if (!itens.length) return '<div class="card"><div class="vazio" style="padding:8px">Nenhuma conversa registrada.</div></div>';
+    return '<div class="card"><div class="t1" style="margin-bottom:4px">Conversas da turma</div>' + itens.map(function (i) {
+      return '<div class="hist-item"><div class="d">' + fmtData(i.h.DataOriginalPlanilha || i.h.DataRegistro) + ' · ' + esc(nomeContato(i.f)) +
+        (i.f.FormAtivo === false ? ' (inativo)' : '') + '</div>' + esc(i.h.TextoObservacao || '') + '</div>';
+    }).join('') + '</div>';
+  }
+
+  function cardContato(f) {
+    var hs = histPorContato[f.idFormando] || [], u = hs[0];
+    var aberto = abertoContato === f.idFormando, ed = editando === f.idFormando;
+    var h = '<div class="card' + (f.FormAtivo === false ? ' inativo' : '') + '" data-f="' + f.idFormando + '">' +
+      '<div class="linha"><div><div class="nome">' + esc(nomeContato(f)) + (f.FormAtivo === false ? ' (inativo)' : '') + '</div>' +
+      '<div class="whats">' + (f.Whats ? esc(fmtWhats(f.Whats)) : 'sem Whats') + '</div></div>' +
+      '<button class="link" data-a="edit">Editar</button></div>';
+    if (f.Whats) {
+      h += '<div class="acoes"><a class="btn peq" href="https://wa.me/' + esc(String(f.Whats).replace(/\D/g, '')) + '" target="_blank" rel="noopener">WhatsApp</a>' +
+           '<a class="btn sec peq" href="tel:+' + esc(String(f.Whats).replace(/\D/g, '')) + '">Ligar</a></div>';
+    }
+    if (u) h += '<div class="ult"><b>' + fmtData(u.DataOriginalPlanilha || u.DataRegistro) + '</b><br>' + esc(u.TextoObservacao || '') + '</div>';
+    else h += '<div class="ult"><b>Sem conversa registrada</b></div>';
+
+    if (ed) {
+      h += '<div class="form"><input type="text" data-k="nome" value="' + esc(f.FormandoNome || '') + '" placeholder="Nome">' +
+        '<input type="text" data-k="sobrenome" value="' + esc(f.FormandoSobrenome || '') + '" placeholder="Sobrenome">' +
+        '<input type="tel" data-k="whats" inputmode="tel" value="' + esc(f.Whats || '') + '" placeholder="Whats (com DDD)">' +
+        '<div class="row"><button class="btn" data-a="saveEdit">Salvar</button><button class="btn sec" data-a="cancelEdit">Cancelar</button></div>' +
+        '<button class="btn perigo peq" data-a="toggleAtivo">' + (f.FormAtivo === false ? 'Reativar contato' : 'Marcar como inativo') + '</button></div>';
+    }
+    h += '<div style="margin-top:8px"><button class="link" data-a="hist">' + (aberto ? 'Fechar conversas' : 'Conversas (' + hs.length + ') / registrar nova') + '</button></div>';
+    if (aberto) {
+      h += '<div class="form"><input type="date" data-k="data" value="' + hoje() + '">' +
+        '<textarea data-k="texto" placeholder="O que foi conversado..."></textarea>' +
+        '<button class="btn" data-a="saveHist">Registrar conversa</button></div>';
+      h += hs.map(function (x) {
+        return '<div class="hist-item"><div class="d">' + fmtData(x.DataOriginalPlanilha || x.DataRegistro) + '</div>' + esc(x.TextoObservacao || '') + '</div>';
+      }).join('');
+    }
+    return h + '</div>';
+  }
+
+  function msg(t, erro) { var m = $('dmsg'); if (m) { m.textContent = t; m.className = 'msg' + (erro ? ' erro' : ''); } }
+
+  $('detalhe').addEventListener('click', async function (e) {
+    var id = e.target.id;
+    if (id === 'voltar') return fechar();
+    if (id === 'novoBtn') { $('novoForm').classList.toggle('oculto'); $('nNome').focus(); return; }
+    if (id === 'nCancel') { $('novoForm').classList.add('oculto'); return; }
+    if (id === 'histTurmaBtn') { verHistTurma = !verHistTurma; return renderDetalhe(); }
+    if (id === 'inatBtn') { verInativos = !verInativos; return renderDetalhe(); }
+    if (id === 'nSalvar') return salvarNovo(e.target);
+
+    var btn = e.target.closest('[data-a]'); if (!btn) return;
+    var card = btn.closest('[data-f]'); var idF = Number(card.getAttribute('data-f'));
+    var f = (contatosPorTurma[turmaAberta] || []).filter(function (x) { return x.idFormando === idF; })[0];
+    var a = btn.getAttribute('data-a');
+    if (a === 'edit') { editando = editando === idF ? null : idF; return renderDetalhe(); }
+    if (a === 'cancelEdit') { editando = null; return renderDetalhe(); }
+    if (a === 'hist') { abertoContato = abertoContato === idF ? null : idF; return renderDetalhe(); }
+    if (a === 'saveEdit') {
+      var nome = card.querySelector('[data-k=nome]').value.trim();
+      if (!nome) return msg('Digite o nome.', true);
+      var upd = { FormandoNome: nome, FormandoSobrenome: card.querySelector('[data-k=sobrenome]').value.trim() || null, Whats: normWhats(card.querySelector('[data-k=whats]').value) };
+      btn.disabled = true;
+      var r = await db.from('FormFormando').update(upd).eq('idFormando', idF);
+      if (r.error) { btn.disabled = false; return msg('Erro ao salvar: ' + r.error.message, true); }
+      Object.assign(f, upd); editando = null; return renderDetalhe('Contato atualizado.');
+    }
+    if (a === 'toggleAtivo') {
+      var novo = f.FormAtivo === false;
+      if (!novo && !confirm('Marcar "' + nomeContato(f) + '" como inativo? O histórico fica guardado.')) return;
+      var r2 = await db.from('FormFormando').update({ FormAtivo: novo }).eq('idFormando', idF);
+      if (r2.error) return msg('Erro: ' + r2.error.message, true);
+      f.FormAtivo = novo; editando = null; return renderDetalhe(novo ? 'Contato reativado.' : 'Contato marcado como inativo.');
+    }
+    if (a === 'saveHist') {
+      var texto = card.querySelector('[data-k=texto]').value.trim();
+      if (!texto) return msg('Escreva o que foi conversado.', true);
+      var data = card.querySelector('[data-k=data]').value || null;
+      btn.disabled = true;
+      var r3 = await db.from('FormFormandoHistoricoContato').insert({ IdFormando: idF, DataOriginalPlanilha: data, TextoObservacao: texto }).select('idHistorico, IdFormando, DataOriginalPlanilha, TextoObservacao, DataRegistro').single();
+      if (r3.error) { btn.disabled = false; return msg('Erro ao registrar: ' + r3.error.message, true); }
+      (histPorContato[idF] = histPorContato[idF] || []).push(r3.data); histPorContato[idF].sort(cmpHist);
+      return renderDetalhe('Conversa registrada.');
+    }
+  });
+
+  async function salvarNovo(btn) {
+    var nome = $('nNome').value.trim();
+    if (!nome) return msg('Digite o nome do contato.', true);
+    var whats = normWhats($('nWhats').value.trim());
+    var texto = $('nTexto').value.trim() || 'Contato cadastrado pelo celular.';
+    btn.disabled = true;
+    var r = await db.from('FormFormando').insert({ IdTurma: turmaAberta, FormandoNome: nome, Whats: whats }).select('idFormando, IdTurma, FormandoNome, FormandoSobrenome, Whats, FormAtivo').single();
+    if (r.error) { btn.disabled = false; return msg('Erro ao adicionar: ' + r.error.message, true); }
+    // O contato só aparece na Prospecção se tiver ao menos uma conversa; por isso já registramos uma.
+    var r2 = await db.from('FormFormandoHistoricoContato').insert({ IdFormando: r.data.idFormando, DataOriginalPlanilha: hoje(), TextoObservacao: texto }).select('idHistorico, IdFormando, DataOriginalPlanilha, TextoObservacao, DataRegistro').single();
+    (contatosPorTurma[turmaAberta] = contatosPorTurma[turmaAberta] || []).push(r.data);
+    if (r2.error) { renderDetalhe('Contato salvo, mas a conversa falhou: ' + r2.error.message, true); return; }
+    histPorContato[r.data.idFormando] = [r2.data];
+    renderDetalhe('Contato adicionado.');
+  }
+
+  if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js'); } catch (e) {} }
+  iniciar();
+})();
+</script>
+</body>
+</html>
