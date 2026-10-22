@@ -298,6 +298,12 @@
 
   function render() {
     var lista = filtradas();
+    // Ordem: data de retorno mais próxima primeiro (atrasadas no topo); sem data por último.
+    lista.sort(function (x, y) {
+      var dx = x.prox ? String(x.prox).slice(0, 10) : '9999-99-99', dy = y.prox ? String(y.prox).slice(0, 10) : '9999-99-99';
+      if (dx !== dy) return dx < dy ? -1 : 1;
+      return x.fac.localeCompare(y.fac, 'pt-BR') || x.cur.localeCompare(y.cur, 'pt-BR') || x.sem.localeCompare(y.sem, 'pt-BR', { numeric: true });
+    });
     var tot = lista.reduce(function (s, t) { return s + ativosDe(t.id).length; }, 0);
     $('resumo').textContent = lista.length + ' turma(s) · ' + tot + ' contato(s)';
     if (!lista.length) { $('lista').innerHTML = '<div class="vazio">Nenhuma turma com esses filtros.</div>'; return; }
