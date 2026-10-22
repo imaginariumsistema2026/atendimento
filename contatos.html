@@ -336,11 +336,14 @@
     var inativos = todos.filter(function (f) { return f.FormAtivo === false; }).length;
     var h = '<div class="dh"><button class="voltar" id="voltar">‹ Voltar</button>' +
       '<div class="linha"><div><div class="t1" style="font-size:1.1rem">' + esc(t.fac) + ' · ' + esc(t.cur) + '</div><div class="t2">' + esc(t.tur) + ' · ' + esc(t.sem) +
-      (t.exp ? ' · previstos ' + t.exp : '') + (t.prox ? ' · retorno ' + fmtData(t.prox) : '') + '</div></div>' +
+      (t.exp ? ' · previstos ' + t.exp : '') + '</div></div>' +
       '<span class="badge ' + badgeClasse(t.cond) + '">' + esc(t.cond || 'sem condição') + '</span></div>' +
       '<div class="acoes"><button class="btn peq" id="novoBtn">+ Novo contato</button>' +
       '<button class="btn sec peq" id="histTurmaBtn">' + (verHistTurma ? 'Ocultar conversas' : 'Conversas da turma') + '</button>' +
       (inativos ? '<button class="btn sec peq" id="inatBtn">' + (verInativos ? 'Ocultar' : 'Ver') + ' inativos (' + inativos + ')</button>' : '') + '</div>' +
+      '<div class="form" style="margin-top:8px"><label style="font-size:.85rem;color:var(--muted);font-weight:600">Data de retorno' + (t.prox ? ' (atual: ' + fmtData(t.prox) + ')' : ' (não definida)') + '</label>' +
+      '<div class="row"><input type="date" id="retData" value="' + esc(t.prox ? String(t.prox).slice(0, 10) : '') + '"><button class="btn peq" id="retSalvar" style="flex:0 0 auto">Salvar</button>' +
+      (t.prox ? '<button class="btn sec peq" id="retLimpar" style="flex:0 0 auto">Limpar</button>' : '') + '</div></div>' +
       '<div class="msg' + (erro ? ' erro' : '') + '" id="dmsg" style="margin-top:6px">' + esc(msg || '') + '</div></div>';
 
     h += '<div id="novoForm" class="form oculto">' +
@@ -410,6 +413,13 @@
     if (id === 'histTurmaBtn') { verHistTurma = !verHistTurma; return renderDetalhe(); }
     if (id === 'inatBtn') { verInativos = !verInativos; return renderDetalhe(); }
     if (id === 'nSalvar') return salvarNovo(e.target);
+    if (id === 'retSalvar' || id === 'retLimpar') {
+      var nova = id === 'retLimpar' ? null : ($('retData').value || null);
+      var rr = await db.from('FormTurma').update({ DataProximoContato: nova }).eq('idTurma', turmaAberta);
+      if (rr.error) return msg('Erro ao salvar a data: ' + rr.error.message, true);
+      turmaPorId(turmaAberta).prox = nova;
+      return renderDetalhe(nova ? 'Data de retorno salva: ' + fmtData(nova) + '.' : 'Data de retorno removida.');
+    }
 
     var btn = e.target.closest('[data-a]'); if (!btn) return;
     var card = btn.closest('[data-f]'); var idF = Number(card.getAttribute('data-f'));
