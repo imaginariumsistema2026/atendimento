@@ -1,0 +1,31 @@
+{
+  "name": "Pré-evento Imaginarium",
+  "short_name": "Pré-evento",
+  "description": "Lançar e consultar pré-eventos - Foto e Vídeo",
+  "start_url": "./preevento.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f7",
+  "theme_color": "#1f5f7a",
+  "icons": [
+    {
+      "src": "preevento-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "preevento-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "preevento-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
