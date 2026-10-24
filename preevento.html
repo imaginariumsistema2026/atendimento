@@ -50,6 +50,7 @@
   #pin.on { display:flex; }
   #pin .box { background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px 20px; width:100%; max-width:320px; text-align:center; }
   #pinIn { text-align:center; letter-spacing:.5em; font-size:1.6rem; }
+  .tsel { display:flex; align-items:center; gap:4px; } .tsel select { padding:11px 6px; text-align:center; }
   .oculto { display:none !important; }
 </style>
 </head>
@@ -73,7 +74,7 @@
 
       <label>Data do evento</label>
       <input type="date" id="data">
-      <div class="row"><div><label>Início</label><input type="time" id="hIni"></div><div><label>Fim</label><input type="time" id="hFim"></div></div>
+      <div class="row"><div><label>Início</label><div id="hIni"></div></div><div><label>Fim</label><div id="hFim"></div></div></div>
 
       <label>Local</label>
       <input type="search" id="localBusca" placeholder="Digite para buscar o local..." autocomplete="off">
@@ -141,9 +142,23 @@
     if (d.indexOf('55') === 0 && d.length === 12) return '(' + d.slice(2, 4) + ') ' + d.slice(4, 8) + '-' + d.slice(8);
     return w || '';
   }
+
+  /* seletor de horário (dois menus: hora e minuto), no lugar do relógio do navegador que cortava o botão OK */
+  function tHtml(attrs, val) {
+    var v = String(val || '').slice(0, 5), h = v.slice(0, 2), m = v.slice(3, 5), o = '<option value="">--</option>', i, x;
+    var hs = o, ms = o;
+    for (i = 0; i < 24; i++) { x = String(i).padStart(2, '0'); hs += '<option' + (x === h ? ' selected' : '') + '>' + x + '</option>'; }
+    var mins = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']; if (m && mins.indexOf(m) < 0) mins.push(m), mins.sort();
+    mins.forEach(function (y) { ms += '<option' + (y === m ? ' selected' : '') + '>' + y + '</option>'; });
+    return '<div class="tsel" ' + attrs + '><select data-p="h">' + hs + '</select>:<select data-p="m">' + ms + '</select></div>';
+  }
+  function tVal(el) { var h = el.querySelector('[data-p=h]').value, m = el.querySelector('[data-p=m]').value; if (!h) return ''; return h + ':' + (m || '00'); }
+  function tSet(el, v) { v = String(v || ''); el.querySelector('[data-p=h]').value = v.slice(0, 2); el.querySelector('[data-p=m]').value = v ? v.slice(3, 5) : ''; }
   function setMsg(id, t, erro) { var m = $(id); m.textContent = t || ''; m.className = 'msg' + (erro ? ' erro' : ''); }
 
   /* ---------- PIN ---------- */
+  function montarHoras() { $('hIni').outerHTML = tHtml('id="hIni"', ''); $('hFim').outerHTML = tHtml('id="hFim"', ''); }
+  montarHoras();
   function iniciar() {
     if (lsGet('peOk') === '1') { entrar(); return; }
     $('pin').classList.add('on'); $('pinIn').focus();
@@ -209,7 +224,7 @@
   function usadas() { var u = extras.map(function (x) { return x.id; }); if (turmaSel) u.push(turmaSel.id); return u; }
 
   async function membros(idTurma) {
-    var r = await db.from('FormFormando').select('idFormando, FormandoNome, FormandoSobrenome, Whats').eq('IdTurma', idTurma).eq('FormAtivo', true).order('FormandoNome', { ascending: true });
+    var r = await db.from('FormFormando').select('idFormando, FormandoNome, FormandoSobrenome, Whats').eq('IdTurma', idTurma).eq('FormAtivo', true).eq('Comissao', true).order('FormandoNome', { ascending: true });
     return (r.data || []).map(function (f) { return { id: f.idFormando, nome: [f.FormandoNome, f.FormandoSobrenome].filter(Boolean).join(' ').trim(), whats: f.Whats || '' }; }).filter(function (m) { return m.nome; });
   }
   function chipsHtml(ms, ativoId) { return ms.map(function (m) { return '<span class="chip' + (m.id === ativoId ? ' on' : '') + '" data-m="' + m.id + '">' + esc(m.nome) + '</span>'; }).join(''); }
@@ -220,7 +235,7 @@
     turmaSel = t; $('turmaBusca').value = t.texto; $('turmaSel').textContent = 'Turma selecionada';
     $('contato').value = ''; $('whats').value = ''; $('comChips').innerHTML = '<span style="color:#66757c;font-size:.85rem">Buscando formandos...</span>';
     comMembros = await membros(t.id);
-    if (!comMembros.length) { $('comChips').innerHTML = '<span style="color:#66757c;font-size:.85rem">Nenhum formando cadastrado. Preencha o contato.</span>'; return; }
+    if (!comMembros.length) { $('comChips').innerHTML = '<span style="color:#66757c;font-size:.85rem">Ninguém da comissão cadastrado nesta turma. Preencha o contato.</span>'; return; }
     if (comMembros.length === 1) { $('comChips').innerHTML = ''; pick(comMembros[0]); return; }
     $('comChips').innerHTML = chipsHtml(comMembros, null);
   });
@@ -249,13 +264,13 @@
   function renderExtras() {
     $('extras').innerHTML = extras.map(function (x, i) {
       return '<div class="extra" data-i="' + i + '"><div class="t1">' + esc(x.texto) + '</div>' +
-        '<div class="row"><div><label>Início</label><input type="time" data-k="ini" value="' + esc(x.ini) + '"></div><div><label>Fim</label><input type="time" data-k="fim" value="' + esc(x.fim) + '"></div></div>' +
+        '<div class="row"><div><label>Início</label>' + tHtml('data-k="ini"', x.ini) + '</div><div><label>Fim</label>' + tHtml('data-k="fim"', x.fim) + '</div></div>' +
         (x.ms.length > 1 ? '<div class="chips">' + chipsHtml(x.ms, (x.ms.filter(function (m) { return m.nome === x.contato; })[0] || {}).id) + '</div>' : '') +
         '<label>Contato</label><input type="text" data-k="contato" value="' + esc(x.contato) + '"><label>WhatsApp</label><input type="tel" data-k="whats" value="' + esc(x.whats) + '">' +
         '<button class="link" data-rm="1" style="color:var(--warn)">Remover esta turma</button></div>';
     }).join('');
   }
-  $('extras').addEventListener('input', function (e) { var b = e.target.closest('[data-i]'); var k = e.target.getAttribute('data-k'); if (b && k) extras[+b.getAttribute('data-i')][k] = e.target.value; });
+  $('extras').addEventListener('input', function (e) { var b = e.target.closest('[data-i]'); var kEl = e.target.closest('[data-k]'); if (!b || !kEl) return; var k = kEl.getAttribute('data-k'); extras[+b.getAttribute('data-i')][k] = kEl.classList.contains('tsel') ? tVal(kEl) : e.target.value; });
   $('extras').addEventListener('click', function (e) {
     var b = e.target.closest('[data-i]'); if (!b) return; var x = extras[+b.getAttribute('data-i')];
     if (e.target.getAttribute('data-rm')) { extras.splice(+b.getAttribute('data-i'), 1); return renderExtras(); }
@@ -265,7 +280,7 @@
   /* salvar */
   $('salvar').addEventListener('click', async function () {
     if (salvando) return;
-    var data = $('data').value, ini = $('hIni').value, fim = $('hFim').value, contato = $('contato').value.trim(), whats = $('whats').value.trim(), obs = $('obs').value.trim();
+    var data = $('data').value, ini = tVal($('hIni')), fim = tVal($('hFim')), contato = $('contato').value.trim(), whats = $('whats').value.trim(), obs = $('obs').value.trim();
     if (!turmaSel || !data || !contato || !whats) return setMsg('msgLancar', 'Preencha turma, data, nome do contato e WhatsApp.', true);
     if (ini && fim && fim <= ini) return setMsg('msgLancar', 'O horário de fim precisa ser depois do início.', true);
     for (var i = 0; i < extras.length; i++) {
@@ -292,8 +307,8 @@
   });
   function limpar() {
     turmaSel = null; localSel = null; extras = []; comMembros = [];
-    ['turmaBusca', 'data', 'hIni', 'hFim', 'localBusca', 'contato', 'whats', 'extraBusca', 'obs'].forEach(function (id) { $(id).value = ''; });
-    $('turmaSel').textContent = ''; $('localSel').textContent = ''; $('comChips').innerHTML = ''; renderExtras(); window.scrollTo(0, 0);
+    ['turmaBusca', 'data', 'localBusca', 'contato', 'whats', 'extraBusca', 'obs'].forEach(function (id) { $(id).value = ''; });
+    $('turmaSel').textContent = ''; $('localSel').textContent = ''; $('comChips').innerHTML = ''; renderExtras(); tSet($('hIni'), ''); tSet($('hFim'), ''); window.scrollTo(0, 0);
   }
 
   /* ---------- Lista / correção ---------- */
@@ -345,7 +360,7 @@
     var outros = e.IdSessao ? eventos.filter(function (x) { return x.IdSessao === e.IdSessao && x.idPreEvento !== e.idPreEvento; }).length : 0;
     return '<div class="card" data-id="' + e.idPreEvento + '"><div class="t1">Corrigir pré-evento</div><div class="t2">' + esc(turmaTxt(e.IdTurma)) + '</div>' +
       '<label>Data</label><input type="date" data-k="data" value="' + esc(String(e.DataEvento).slice(0, 10)) + '">' +
-      '<div class="row"><div><label>Início</label><input type="time" data-k="ini" value="' + esc(hh(e.HorarioEvento)) + '"></div><div><label>Fim</label><input type="time" data-k="fim" value="' + esc(hh(e.HorarioFimEvento)) + '"></div></div>' +
+      '<div class="row"><div><label>Início</label>' + tHtml('data-k="ini"', hh(e.HorarioEvento)) + '</div><div><label>Fim</label>' + tHtml('data-k="fim"', hh(e.HorarioFimEvento)) + '</div></div>' +
       '<label>Local</label><select data-k="local"><option value="">Nenhum</option>' + locais.map(function (l) { return '<option value="' + l.id + '"' + (l.id === e.IdLocalPreEvento ? ' selected' : '') + '>' + esc(l.nome) + '</option>'; }).join('') + '</select>' +
       '<label>Contato da comissão</label><input type="text" data-k="contato" value="' + esc(e.NomeContatoComissao || '') + '">' +
       '<label>WhatsApp</label><input type="tel" data-k="whats" value="' + esc(e.WhatsContatoComissao || '') + '">' +
@@ -366,7 +381,7 @@
     }
     if (a === 'save') {
       var q = function (k) { return card.querySelector('[data-k=' + k + ']'); };
-      var data = q('data').value, ini = q('ini').value, fim = q('fim').value, msgEl = card.querySelector('[data-msg]');
+      var data = q('data').value, ini = tVal(q('ini')), fim = tVal(q('fim')), msgEl = card.querySelector('[data-msg]');
       if (!data) { msgEl.className = 'msg erro'; msgEl.textContent = 'Preencha a data.'; return; }
       if (ini && fim && fim <= ini) { msgEl.className = 'msg erro'; msgEl.textContent = 'O fim precisa ser depois do início.'; return; }
       var sair = q('sair') && q('sair').checked;
