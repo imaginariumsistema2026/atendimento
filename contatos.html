@@ -116,6 +116,7 @@
   var turmas = [];            // linhas de turma
   var contatosPorTurma = {};  // idTurma -> [formando]
   var histPorContato = {};    // idFormando -> [hist] (mais recente primeiro)
+  var reunioesPorTurma = {};  // idTurma -> [reunião da agenda]
   var condSel = {};           // condições marcadas
   var LIMITE = 80, mostrar = LIMITE;
   var turmaAberta = null, verInativos = false, verHistTurma = false, abertoContato = null, editando = null;
@@ -187,9 +188,17 @@
         mapa('FormCurso', 'idCurso', 'NomeCurso'),
         mapa('FormTurno', 'idturno', 'NomeTurno'),
         mapa('FormSemestre', 'idSemestre', 'NomeSemestre'),
-        pagina(function () { return db.from('FormFormandoHistoricoContato').select('idHistorico, IdFormando, DataOriginalPlanilha, TextoObservacao, DataRegistro').order('idHistorico'); })
+        pagina(function () { return db.from('FormFormandoHistoricoContato').select('idHistorico, IdFormando, DataOriginalPlanilha, TextoObservacao, DataRegistro').order('idHistorico'); }),
+        pagina(function () { return db.from('FormAgendaTurma').select('IdAgenda, IdTurma').order('IdAgenda'); }),
+        pagina(function () { return db.from('FormAgenda').select('idAgenda, IdTipoAgenda, Titulo, DataAgenda, HoraInicio, Situacao, Ata').order('idAgenda'); }),
+        mapa('FormTipoAgenda', 'idTipoAgenda', 'NomeTipo')
       ]);
       var ts = res[0], mf = res[1], mc = res[2], mt = res[3], ms = res[4], hs = res[5];
+      var agTur = res[6], ags = {}, tiposAg = res[8];
+      res[7].forEach(function (a) { ags[a.idAgenda] = a; });
+      reunioesPorTurma = {};
+      agTur.forEach(function (r) { var a = ags[r.IdAgenda]; if (a) (reunioesPorTurma[r.IdTurma] = reunioesPorTurma[r.IdTurma] || []).push({ id: a.idAgenda, tipo: tiposAg[a.IdTipoAgenda] || 'Reunião', titulo: a.Titulo, data: a.DataAgenda, hora: a.HoraInicio, sit: a.Situacao, ata: a.Ata }); });
+      Object.keys(reunioesPorTurma).forEach(function (k) { reunioesPorTurma[k].sort(function (x, y) { return String(y.data).localeCompare(String(x.data)) || String(y.hora || '').localeCompare(String(x.hora || '')); }); });
 
       histPorContato = {};
       hs.forEach(function (h) { (histPorContato[h.IdFormando] = histPorContato[h.IdFormando] || []).push(h); });
@@ -312,7 +321,7 @@
       if (u) x = '<div class="ult"><b>' + fmtData(u.h.DataOriginalPlanilha || u.h.DataRegistro) + ' · ' + esc(nomeContato(u.f)) + '</b><br>' + esc(String(u.h.TextoObservacao || '').slice(0, 140)) + '</div>';
       return '<div class="card turma" data-id="' + t.id + '">' +
         '<div class="linha"><div><div class="t1">' + esc(t.fac) + ' · ' + esc(t.cur) + '</div>' +
-        '<div class="t2">' + esc(t.tur) + ' · ' + esc(t.sem) + ' · ' + at.length + ' contato(s)' + (t.prox ? ' · retorno ' + fmtData(t.prox) : '') + '</div></div>' +
+        '<div class="t2">' + esc(t.tur) + ' · ' + esc(t.sem) + ' · ' + at.length + ' contato(s)' + (t.prox ? ' · retorno ' + fmtData(t.prox) : '') + (nReun(t.id) ? ' · ' + nReun(t.id) + ' reunião(ões) feita(s)' : '') + '</div></div>' +
         '<span class="badge ' + badgeClasse(t.cond) + '">' + esc(t.cond || 'sem condição') + '</span></div>' + x + '</div>';
     }).join('');
     if (lista.length > mostrar) html += '<button class="btn sec" style="width:100%" id="maisBtn">Mostrar mais (' + (lista.length - mostrar) + ')</button>';
@@ -358,11 +367,25 @@
       '<textarea id="nTexto" placeholder="Primeira conversa (opcional)"></textarea>' +
       '<div class="row"><button class="btn" id="nSalvar">Salvar contato</button><button class="btn sec" id="nCancel">Cancelar</button></div></div>';
 
+    h += blocoReunioes(t);
     if (verHistTurma) h += blocoHistTurma(t, todos);
 
     if (!lista.length) h += '<div class="vazio">Nenhum contato lançado nesta turma ainda.</div>';
     h += lista.map(function (f) { return cardContato(f); }).join('');
     $('detConteudo').innerHTML = h;
+  }
+
+  var SIT_REUN = { realizada: 'Realizada', agendada: 'Agendada', adiada: 'Adiada', cancelada: 'Cancelada' };
+  function nReun(id) { return (reunioesPorTurma[id] || []).filter(function (r) { return r.sit === 'realizada'; }).length; }
+  function blocoReunioes(t) {
+    var todas = reunioesPorTurma[t.id] || [], feitas = todas.filter(function (r) { return r.sit === 'realizada'; }), outras = todas.filter(function (r) { return r.sit !== 'realizada' && r.sit !== 'cancelada'; });
+    var item = function (r) {
+      return '<div class="ult" style="margin-top:8px"><b>' + fmtData(r.data) + (r.hora ? ' · ' + String(r.hora).slice(0, 5) : '') + ' · ' + esc(r.tipo) + '</b> <span class="badge">' + esc(SIT_REUN[r.sit] || r.sit || '') + '</span>' +
+        (r.titulo ? '<br>' + esc(r.titulo) : '') + (r.ata ? '<br><span style="color:var(--muted)">Ata: ' + esc(String(r.ata).slice(0, 220)) + (String(r.ata).length > 220 ? '…' : '') + '</span>' : '') + '</div>';
+    };
+    return '<div class="card"><div class="t1">Reuniões desta turma</div>' +
+      (feitas.length ? '<div class="t2">' + feitas.length + ' reunião(ões) já realizada(s)</div>' + feitas.map(item).join('') : '<div class="t2">Nenhuma reunião realizada ainda.</div>') +
+      (outras.length ? '<div class="t2" style="margin-top:12px;font-weight:600">Agendadas / adiadas</div>' + outras.map(item).join('') : '') + '</div>';
   }
 
   function blocoHistTurma(t, contatos) {
