@@ -288,7 +288,7 @@ async function iniciar(){
     sb.from('finan_contas').select('id,nome').order('nome'),
     sb.from('finan_cartoes').select('id,nome').order('nome'),
     sb.from('finan_categorias').select('id,nome').order('nome'),
-    sb.from('finan_lancamentos').select('descricao,categoria_id').order('created_at', { ascending:false }).limit(400),
+    sb.from('finan_lancamentos').select('descricao,categoria_id').order('criado_em', { ascending:false }).limit(400),
   ]);
   if (c.error || k.error || cat.error) { toast('Erro ao carregar: ' + (c.error || k.error || cat.error).message, 'err'); return; }
   contas = c.data || []; cartoes = k.data || [];
@@ -412,8 +412,8 @@ $('form').addEventListener('submit', async (e) => {
 async function carregarHoje(){
   const ini = new Date(); ini.setHours(0, 0, 0, 0);
   const { data, error } = await sb.from('finan_lancamentos')
-    .select('id,descricao,valor,status_pagamento,conta_id,cartao_id,parcelamento_id,numero_parcela,created_at')
-    .gte('created_at', ini.toISOString()).order('created_at', { ascending:false }).limit(60);
+    .select('id,descricao,valor,status_pagamento,conta_id,cartao_id,parcelamento_id,numero_parcela,criado_em')
+    .gte('criado_em', ini.toISOString()).order('criado_em', { ascending:false }).limit(60);
   const el = $('hoje');
   if (error) { el.innerHTML = '<div class="vazio">Erro ao carregar: ' + esc(error.message) + '</div>'; return; }
   const itens = (data || []).filter((l) => !l.numero_parcela || l.numero_parcela === 1);
