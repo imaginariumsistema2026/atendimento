@@ -1,0 +1,31 @@
+{
+  "name": "Lançar — Livro-Caixa",
+  "short_name": "Lançar",
+  "description": "Lance os gastos do dia na conta ou no cartão.",
+  "start_url": "./lancar.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F1E6",
+  "theme_color": "#2F5233",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "lancar-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "lancar-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "lancar-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "id": "./lancar.html"
+}

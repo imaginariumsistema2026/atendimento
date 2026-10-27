@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lançar</title>
+<meta name="theme-color" content="#2F5233">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lançar">
+<link rel="manifest" href="manifest-lancar.json">
+<link rel="apple-touch-icon" href="apple-touch-lancar.png">
+<link rel="icon" type="image/png" href="lancar-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --paper:#F5F1E6; --card:#FFFFFF; --ink:#22302A; --ink-soft:#5B6259;
+    --line:#DAD3BF; --line-soft:#E9E4D5; --green:#2F5233; --green-soft:#E7EEE3;
+    --brick:#9C4A3A; --brick-soft:#F4E7E2; --amber:#B8862E;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#171C18; --card:#212823; --ink:#ECE8DB; --ink-soft:#A3AA9F;
+      --line:#3A443C; --line-soft:#2C352E; --green:#6FA377; --green-soft:#26352A;
+      --brick:#E08F7C; --brick-soft:#3A2824; --amber:#D9A94E;
+    }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+    font-variant-numeric:tabular-nums; font-size:16px; line-height:1.35;
+    min-height:100dvh; padding-bottom:calc(96px + env(safe-area-inset-bottom));
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:0 16px;}
+  header{
+    padding:calc(14px + env(safe-area-inset-top)) 16px 12px; max-width:520px; margin:0 auto;
+    display:flex; align-items:baseline; justify-content:space-between; border-bottom:2px solid var(--ink);
+  }
+  h1{font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:24px;margin:0;letter-spacing:-0.01em;}
+  .link{background:none;border:0;color:var(--ink-soft);font-size:14px;padding:8px 0 8px 12px;cursor:pointer;font-family:inherit;}
+
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:0;margin:16px 0 14px;border:1.5px solid var(--green);border-radius:10px;overflow:hidden;}
+  .seg button{
+    background:transparent;border:0;padding:13px 8px;font-size:16px;font-weight:600;color:var(--green);
+    font-family:inherit;cursor:pointer;min-height:48px;
+  }
+  .seg button[aria-pressed="true"]{background:var(--green);color:var(--paper);}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .seg button[aria-pressed="true"]{color:#12170F;}}
+
+  .card{background:var(--card);border:1px solid var(--line-soft);border-radius:12px;padding:16px;margin-bottom:14px;}
+  label,.lbl{display:block;font-size:13px;color:var(--ink-soft);margin:0 0 6px;}
+  .field{margin-bottom:14px;} .field:last-child{margin-bottom:0;}
+  input[type=text],input[type=email],input[type=password],input[type=date],input[type=number],select{
+    width:100%;font-size:16px;font-family:inherit;color:var(--ink);background:var(--paper);
+    border:1px solid var(--line);border-radius:10px;padding:12px;min-height:48px;appearance:none;-webkit-appearance:none;
+  }
+  select{
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%235B6259' stroke-width='2'/></svg>");
+    background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;
+  }
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+  .valor-box{display:flex;align-items:center;gap:10px;}
+  .valor-box .rs{font-size:22px;color:var(--ink-soft);font-weight:600;}
+  #valor{font-size:34px;font-weight:600;padding:10px 12px;min-height:62px;letter-spacing:-0.01em;}
+  .sinal{display:flex;gap:6px;margin-top:10px;}
+  .sinal button{
+    flex:1;border:1px solid var(--line);background:transparent;color:var(--ink-soft);border-radius:999px;
+    padding:9px 10px;font-size:14px;font-family:inherit;cursor:pointer;min-height:40px;
+  }
+  .sinal button[aria-pressed="true"].gasto{background:var(--brick-soft);border-color:var(--brick);color:var(--brick);font-weight:600;}
+  .sinal button[aria-pressed="true"].receita{background:var(--green-soft);border-color:var(--green);color:var(--green);font-weight:600;}
+
+  .switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 0;min-height:44px;}
+  .switch span{font-size:16px;}
+  .switch input{appearance:none;-webkit-appearance:none;width:50px;height:30px;border-radius:999px;background:var(--line);position:relative;cursor:pointer;flex:none;transition:background .15s;border:0;margin:0;}
+  .switch input::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.3);}
+  .switch input:checked{background:var(--green);}
+  .switch input:checked::after{transform:translateX(20px);}
+
+  .parc-prev{margin-top:10px;font-size:14px;color:var(--ink-soft);}
+  .parc-prev strong{color:var(--ink);}
+
+  .savebar{
+    position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--paper) 70%,transparent);
+    padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+  }
+  .savebar .inner{max-width:520px;margin:0 auto;}
+  .btn{
+    width:100%;background:var(--green);color:var(--paper);border:0;border-radius:12px;font-size:17px;font-weight:600;
+    padding:15px;min-height:54px;font-family:inherit;cursor:pointer;
+  }
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .btn{color:#12170F;}}
+  .btn:disabled{opacity:.55;}
+
+  .toast{
+    position:fixed;left:16px;right:16px;bottom:calc(92px + env(safe-area-inset-bottom));max-width:488px;margin:0 auto;
+    padding:12px 14px;border-radius:10px;font-size:15px;font-weight:500;text-align:center;
+    opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .2s,transform .2s;z-index:5;
+  }
+  .toast.show{opacity:1;transform:none;}
+  .toast.ok{background:var(--green);color:var(--paper);}
+  .toast.err{background:var(--brick);color:#fff;}
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .toast.ok{color:#12170F;}}
+
+  h2{font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:18px;margin:22px 0 10px;}
+  .hoje-total{font-size:13px;color:var(--ink-soft);font-weight:400;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;}
+  .item{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line-soft);}
+  .item:last-child{border-bottom:0;}
+  .item .meta{flex:1;min-width:0;}
+  .item .desc{font-size:15px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .item .sub{font-size:12px;color:var(--ink-soft);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .item .val{font-size:15px;font-weight:600;white-space:nowrap;}
+  .neg{color:var(--brick);} .pos{color:var(--green);}
+  .item .x{background:none;border:1px solid var(--line);color:var(--ink-soft);border-radius:8px;min-width:44px;min-height:44px;font-size:13px;font-family:inherit;cursor:pointer;}
+  .item .x.armed{background:var(--brick);border-color:var(--brick);color:#fff;font-weight:600;}
+  .vazio{color:var(--ink-soft);font-size:14px;padding:6px 0;}
+
+  #login{max-width:420px;margin:0 auto;padding:calc(48px + env(safe-area-inset-top)) 16px 24px;}
+  #login h1{font-size:30px;margin-bottom:6px;}
+  #login p{color:var(--ink-soft);margin:0 0 22px;font-size:15px;}
+  .err-msg{color:var(--brick);font-size:14px;min-height:20px;margin:10px 0 0;}
+  [hidden]{display:none !important;}
+</style>
+</head>
+<body>
+
+<section id="login" hidden>
+  <h1>Lançar</h1>
+  <p>Entre com a mesma conta do Livro-Caixa.</p>
+  <form id="form-login" class="card">
+    <div class="field">
+      <label for="l-email">E-mail</label>
+      <input type="email" id="l-email" autocomplete="username" inputmode="email" autocapitalize="none" required>
+    </div>
+    <div class="field">
+      <label for="l-pass">Senha</label>
+      <input type="password" id="l-pass" autocomplete="current-password" required>
+    </div>
+    <button class="btn" type="submit" id="l-btn" style="margin-top:6px;">Entrar</button>
+    <div class="err-msg" id="l-err" role="alert"></div>
+  </form>
+</section>
+
+<section id="app" hidden>
+  <header>
+    <h1>Lançar</h1>
+    <button class="link" id="btn-sair" type="button">Sair</button>
+  </header>
+
+  <form id="form" class="wrap" autocomplete="off" novalidate>
+    <div class="seg" role="group" aria-label="Origem do gasto">
+      <button type="button" id="seg-conta" aria-pressed="true">Conta</button>
+      <button type="button" id="seg-cartao" aria-pressed="false">Cartão</button>
+    </div>
+
+    <div class="card">
+      <div class="field">
+        <label for="valor">Valor</label>
+        <div class="valor-box">
+          <span class="rs">R$</span>
+          <input type="text" id="valor" inputmode="decimal" placeholder="0,00" autocomplete="off">
+        </div>
+        <div class="sinal" role="group" aria-label="Tipo">
+          <button type="button" class="gasto" id="sinal-gasto" aria-pressed="true">Gasto</button>
+          <button type="button" class="receita" id="sinal-receita" aria-pressed="false">Receita</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="descricao">Descrição</label>
+        <input type="text" id="descricao" list="sugestoes" placeholder="Ex.: Supermercado" autocomplete="off" autocapitalize="sentences">
+        <datalist id="sugestoes"></datalist>
+      </div>
+
+      <div class="field">
+        <label for="categoria">Categoria</label>
+        <select id="categoria"><option value="">Escolher…</option></select>
+      </div>
+
+      <div class="field">
+        <label for="origem" id="origem-label">Conta</label>
+        <select id="origem"></select>
+      </div>
+
+      <div class="field">
+        <label for="data">Data</label>
+        <input type="date" id="data">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="switch" id="sw-pago-wrap">
+        <span>Já saiu da conta</span>
+        <input type="checkbox" id="ja-pago" checked aria-label="Já saiu da conta">
+      </div>
+      <div class="switch">
+        <span>Compra parcelada</span>
+        <input type="checkbox" id="parcelado" aria-label="Compra parcelada">
+      </div>
+      <div id="parc-campos" hidden style="margin-top:8px;">
+        <label for="n-parc">Número de parcelas</label>
+        <input type="number" id="n-parc" min="2" max="48" inputmode="numeric" placeholder="3">
+        <div class="parc-prev" id="parc-prev">O valor acima é o <strong>total</strong> da compra.</div>
+      </div>
+    </div>
+
+    <h2>Hoje <span class="hoje-total" id="hoje-total"></span></h2>
+    <div class="card" id="hoje"><div class="vazio">Carregando…</div></div>
+  </form>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="savebar"><div class="inner">
+    <button class="btn" type="submit" form="form" id="btn-salvar">Salvar lançamento</button>
+  </div></div>
+</section>
+
+<script>
+const SUPABASE_URL = "https://gqgxekjcmnostlxgfvlg.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxZ3hla2pjbW5vc3RseGdmdmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMTU2MzAsImV4cCI6MjA4NjU5MTYzMH0.nzjiIPwevOtpRZSK9KRNzCjW5qI0z9iCBBGoknuTEmI";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { localStorage.setItem(k,v); } catch(e){} },
+};
+const brl = (n) => Number(n).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+const hojeISO = () => {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+};
+// Aceita "1.234,56", "1234,56" e "1234.56".
+function parseValor(txt){
+  let t = String(txt || '').trim().replace(/\s|R\$/g,'');
+  if (!t) return NaN;
+  if (t.includes(',')) t = t.replace(/\./g,'').replace(',','.');
+  const n = Number(t);
+  return isFinite(n) ? n : NaN;
+}
+
+let tipo = 'conta';            // 'conta' | 'cartao'
+let sinal = -1;                // -1 gasto, +1 receita
+let contas = [], cartoes = [], categorias = [];
+let descCat = new Map();       // descrição -> última categoria usada
+let salvando = false;
+
+function toast(msg, kind){
+  const t = $('toast');
+  t.textContent = msg; t.className = 'toast show ' + (kind || 'ok');
+  clearTimeout(toast._t); toast._t = setTimeout(() => { t.className = 'toast ' + (kind || 'ok'); }, 2600);
+}
+
+/* ---------- login ---------- */
+$('form-login').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('l-err').textContent = '';
+  $('l-btn').disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email: $('l-email').value.trim(), password: $('l-pass').value });
+  $('l-btn').disabled = false;
+  if (error) $('l-err').textContent = error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos.' : error.message;
+});
+$('btn-sair').addEventListener('click', () => sb.auth.signOut());
+
+let appIniciado = false;
+sb.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    $('login').hidden = true; $('app').hidden = false;
+    if (!appIniciado) { appIniciado = true; iniciar(); }
+  } else {
+    appIniciado = false;
+    $('app').hidden = true; $('login').hidden = false;
+  }
+});
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) { $('login').hidden = false; }
+})();
+
+/* ---------- dados auxiliares ---------- */
+async function iniciar(){
+  $('data').value = hojeISO();
+  const [c, k, cat, rec] = await Promise.all([
+    sb.from('finan_contas').select('id,nome').order('nome'),
+    sb.from('finan_cartoes').select('id,nome').order('nome'),
+    sb.from('finan_categorias').select('id,nome').order('nome'),
+    sb.from('finan_lancamentos').select('descricao,categoria_id').order('created_at', { ascending:false }).limit(400),
+  ]);
+  if (c.error || k.error || cat.error) { toast('Erro ao carregar: ' + (c.error || k.error || cat.error).message, 'err'); return; }
+  contas = c.data || []; cartoes = k.data || [];
+  const cont = new Map();
+  (rec.data || []).forEach((l) => {
+    if (!l.categoria_id) return;
+    cont.set(l.categoria_id, (cont.get(l.categoria_id) || 0) + 1);
+    const d = (l.descricao || '').replace(/\s*\(\d+\/\d+\)\s*$/, '').trim();
+    if (d && !descCat.has(d.toLowerCase())) descCat.set(d.toLowerCase(), { nome:d, cat:l.categoria_id });
+  });
+  categorias = (cat.data || [])
+    .filter((x) => x.nome !== 'Transferência entre contas')
+    .sort((a, b) => (cont.get(b.id) || 0) - (cont.get(a.id) || 0) || a.nome.localeCompare(b.nome, 'pt-BR'));
+  $('categoria').innerHTML = '<option value="">Escolher…</option>' + categorias.map((x) => '<option value="' + x.id + '">' + esc(x.nome) + '</option>').join('');
+  $('sugestoes').innerHTML = [...descCat.values()].slice(0, 150).map((v) => '<option value="' + esc(v.nome) + '"></option>').join('');
+  const salvo = store.get('lancar.tipo');
+  setTipo(salvo === 'cartao' ? 'cartao' : 'conta');
+  carregarHoje();
+}
+function esc(s){ return String(s).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function setTipo(t){
+  tipo = t; store.set('lancar.tipo', t);
+  $('seg-conta').setAttribute('aria-pressed', t === 'conta');
+  $('seg-cartao').setAttribute('aria-pressed', t === 'cartao');
+  $('origem-label').textContent = t === 'conta' ? 'Conta' : 'Cartão';
+  const lista = t === 'conta' ? contas : cartoes;
+  const ultimo = store.get('lancar.origem.' + t);
+  $('origem').innerHTML = lista.map((x) => '<option value="' + x.id + '">' + esc(x.nome) + '</option>').join('');
+  if (ultimo && lista.some((x) => x.id === ultimo)) $('origem').value = ultimo;
+  $('sw-pago-wrap').hidden = (t === 'cartao');
+  atualizarPrev();
+}
+$('seg-conta').addEventListener('click', () => setTipo('conta'));
+$('seg-cartao').addEventListener('click', () => setTipo('cartao'));
+$('origem').addEventListener('change', () => store.set('lancar.origem.' + tipo, $('origem').value));
+
+function setSinal(s){
+  sinal = s;
+  $('sinal-gasto').setAttribute('aria-pressed', s < 0);
+  $('sinal-receita').setAttribute('aria-pressed', s > 0);
+}
+$('sinal-gasto').addEventListener('click', () => setSinal(-1));
+$('sinal-receita').addEventListener('click', () => setSinal(1));
+
+// Descrição já usada antes → sugere a categoria (só se ainda não escolheu uma).
+$('descricao').addEventListener('change', () => {
+  const h = descCat.get($('descricao').value.trim().toLowerCase());
+  if (h && !$('categoria').value) $('categoria').value = h.cat;
+});
+
+/* ---------- parcelas ---------- */
+$('parcelado').addEventListener('change', () => {
+  $('parc-campos').hidden = !$('parcelado').checked;
+  if ($('parcelado').checked) setTimeout(() => $('n-parc').focus(), 50);
+  atualizarPrev();
+});
+['valor', 'n-parc'].forEach((id) => $(id).addEventListener('input', atualizarPrev));
+function atualizarPrev(){
+  const el = $('parc-prev');
+  if (!$('parcelado').checked) return;
+  const v = Math.abs(parseValor($('valor').value)), n = parseInt($('n-parc').value, 10);
+  if (isFinite(v) && n >= 2) el.innerHTML = '<strong>' + n + 'x de ' + brl(Math.round(v / n * 100) / 100) + '</strong> · total ' + brl(v);
+  else el.innerHTML = 'O valor acima é o <strong>total</strong> da compra.';
+}
+
+/* ---------- salvar ---------- */
+$('form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (salvando) return;
+  const valorAbs = Math.abs(parseValor($('valor').value));
+  const descricao = $('descricao').value.trim();
+  const categoria_id = $('categoria').value;
+  const origemId = $('origem').value;
+  const data = $('data').value;
+  const parcelado = $('parcelado').checked;
+  const nParc = parseInt($('n-parc').value, 10);
+
+  if (!valorAbs || !isFinite(valorAbs)) return toast('Informe o valor.', 'err');
+  if (!descricao) return toast('Informe a descrição.', 'err');
+  if (!categoria_id) return toast('Escolha a categoria.', 'err');
+  if (!origemId) return toast('Escolha ' + (tipo === 'conta' ? 'a conta.' : 'o cartão.'), 'err');
+  if (!data) return toast('Informe a data.', 'err');
+  if (parcelado && !(nParc >= 2 && nParc <= 48)) return toast('Informe de 2 a 48 parcelas.', 'err');
+
+  salvando = true; $('btn-salvar').disabled = true;
+  const valor = Math.round(valorAbs * sinal * 100) / 100;
+  let error;
+  if (parcelado) {
+    // Mesmo caminho do Livro-Caixa: grava o parcelamento e o banco gera as parcelas.
+    ({ error } = await sb.from('finan_parcelamentos').insert({
+      descricao, valor_total: valor, numero_parcelas: nParc,
+      valor_parcela: Math.round(valor / nParc * 100) / 100,
+      forma_pagamento: tipo === 'cartao' ? 'cartao' : 'carne',
+      data_primeira_parcela: data, categoria_id,
+      conta_id: tipo === 'conta' ? origemId : null,
+      cartao_id: tipo === 'cartao' ? origemId : null,
+    }));
+  } else {
+    ({ error } = await sb.from('finan_lancamentos').insert({
+      data, descricao, valor, categoria_id,
+      forma_pagamento: tipo === 'cartao' ? 'cartao' : 'debito',
+      conta_id: tipo === 'conta' ? origemId : null,
+      cartao_id: tipo === 'cartao' ? origemId : null,
+      status_pagamento: tipo === 'cartao' ? 'em_aberto' : ($('ja-pago').checked ? 'pago' : 'em_aberto'),
+    }));
+  }
+  salvando = false; $('btn-salvar').disabled = false;
+  if (error) return toast('Não salvou: ' + error.message, 'err');
+
+  descCat.set(descricao.toLowerCase(), { nome: descricao, cat: categoria_id });
+  toast(parcelado ? nParc + ' parcelas lançadas.' : 'Lançamento salvo.', 'ok');
+  $('valor').value = ''; $('descricao').value = ''; $('categoria').value = '';
+  $('parcelado').checked = false; $('parc-campos').hidden = true; $('n-parc').value = '';
+  $('data').value = hojeISO(); setSinal(-1);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  carregarHoje();
+});
+
+/* ---------- lista de hoje ---------- */
+async function carregarHoje(){
+  const ini = new Date(); ini.setHours(0, 0, 0, 0);
+  const { data, error } = await sb.from('finan_lancamentos')
+    .select('id,descricao,valor,status_pagamento,conta_id,cartao_id,parcelamento_id,numero_parcela,created_at')
+    .gte('created_at', ini.toISOString()).order('created_at', { ascending:false }).limit(60);
+  const el = $('hoje');
+  if (error) { el.innerHTML = '<div class="vazio">Erro ao carregar: ' + esc(error.message) + '</div>'; return; }
+  const itens = (data || []).filter((l) => !l.numero_parcela || l.numero_parcela === 1);
+  if (!itens.length) { el.innerHTML = '<div class="vazio">Nada lançado hoje ainda.</div>'; $('hoje-total').textContent = ''; return; }
+  const nome = (l) => l.cartao_id ? (cartoes.find((x) => x.id === l.cartao_id) || {}).nome : (contas.find((x) => x.id === l.conta_id) || {}).nome;
+  let total = 0;
+  el.innerHTML = '';
+  itens.forEach((l) => {
+    if (!l.numero_parcela) total += Number(l.valor);
+    const row = document.createElement('div'); row.className = 'item';
+    const meta = document.createElement('div'); meta.className = 'meta';
+    const d = document.createElement('div'); d.className = 'desc'; d.textContent = l.descricao;
+    const s = document.createElement('div'); s.className = 'sub';
+    s.textContent = (nome(l) || '—') + (l.cartao_id ? ' · cartão' : (l.status_pagamento === 'pago' ? ' · pago' : ' · em aberto')) + (l.parcelamento_id ? ' · parcelado' : '');
+    meta.append(d, s);
+    const v = document.createElement('div'); v.className = 'val ' + (Number(l.valor) < 0 ? 'neg' : 'pos'); v.textContent = brl(l.valor);
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'x'; x.textContent = 'Apagar';
+    x.addEventListener('click', () => apagar(l, x));
+    row.append(meta, v, x); el.appendChild(row);
+  });
+  $('hoje-total').textContent = total ? '· ' + brl(total) + ' avulsos' : '';
+}
+
+// Dois toques: o primeiro arma, o segundo apaga (sem confirm() do navegador).
+async function apagar(l, btn){
+  if (!btn.classList.contains('armed')) {
+    btn.classList.add('armed'); btn.textContent = l.parcelamento_id ? 'Apagar todas?' : 'Confirmar';
+    setTimeout(() => { btn.classList.remove('armed'); btn.textContent = 'Apagar'; }, 3500);
+    return;
+  }
+  btn.disabled = true;
+  let error;
+  if (l.parcelamento_id) {
+    ({ error } = await sb.from('finan_lancamentos').delete().eq('parcelamento_id', l.parcelamento_id));
+    if (!error) ({ error } = await sb.from('finan_parcelamentos').delete().eq('id', l.parcelamento_id));
+  } else {
+    ({ error } = await sb.from('finan_lancamentos').delete().eq('id', l.id));
+  }
+  if (error) { btn.disabled = false; return toast('Não apagou: ' + error.message, 'err'); }
+  toast('Apagado.', 'ok'); carregarHoje();
+}
+
+</script>
+</body>
+</html>
