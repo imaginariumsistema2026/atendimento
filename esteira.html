@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Esteira de Ideias</title>
+<meta name="theme-color" content="#2F5233">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Esteira">
+<link rel="manifest" href="manifest-esteira.json">
+<link rel="apple-touch-icon" href="apple-touch-esteira.png">
+<link rel="icon" type="image/png" href="esteira-192.png">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --paper:#F5F1E6; --card:#FFFFFF; --ink:#22302A; --ink-soft:#5B6259;
+    --line:#DAD3BF; --line-soft:#E9E4D5; --green:#2F5233; --green-soft:#E7EEE3;
+    --brick:#9C4A3A; --brick-soft:#F4E7E2; --amber:#B8862E; --amber-soft:#F6EEDC;
+    --blue:#35577A; --blue-soft:#E3EAF2; --on-green:#F5F1E6;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#171C18; --card:#212823; --ink:#ECE8DB; --ink-soft:#A3AA9F;
+      --line:#3A443C; --line-soft:#2C352E; --green:#6FA377; --green-soft:#26352A;
+      --brick:#E08F7C; --brick-soft:#3A2824; --amber:#D9A94E; --amber-soft:#3A3122;
+      --blue:#8DB0D6; --blue-soft:#24303C; --on-green:#12170F;
+    }
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+    font-size:16px; line-height:1.35; min-height:100dvh;
+    padding-bottom:calc(76px + env(safe-area-inset-bottom));
+  }
+  button{font-family:inherit;cursor:pointer;}
+  .wrap{max-width:560px;margin:0 auto;padding:0 16px;}
+
+  header{
+    position:sticky;top:0;z-index:20;background:var(--paper);
+    padding:calc(12px + env(safe-area-inset-top)) 16px 10px;border-bottom:2px solid var(--ink);
+  }
+  .hd{max-width:560px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px;}
+  h1{font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:23px;margin:0;letter-spacing:-0.01em;}
+  .eu{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 12px;font-size:14px;min-height:38px;}
+  .eu b{color:var(--green);}
+
+  .tools{display:flex;gap:8px;margin:14px 0 10px;}
+  .search{flex:1;font-size:16px;font-family:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;}
+  .iconbtn{border:1px solid var(--line);background:var(--card);color:var(--ink-soft);border-radius:10px;min-width:44px;min-height:44px;font-size:18px;}
+
+  .chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{flex:none;border:1px solid var(--line);background:transparent;color:var(--ink-soft);border-radius:999px;padding:7px 12px;font-size:14px;min-height:36px;white-space:nowrap;}
+  .chip .n{font-variant-numeric:tabular-nums;opacity:.75;margin-left:4px;}
+  .chip[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:var(--on-green);font-weight:600;}
+
+  .list{display:flex;flex-direction:column;gap:10px;}
+  .card{background:var(--card);border:1px solid var(--line-soft);border-radius:12px;padding:13px 14px;text-align:left;width:100%;color:var(--ink);font-size:16px;}
+  .card:active{transform:scale(.995);}
+  .card .t{font-weight:600;}
+  .card .s{color:var(--ink-soft);font-size:14px;margin-top:3px;}
+  .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px;}
+  .tag{font-size:12px;border-radius:6px;padding:3px 7px;background:var(--line-soft);color:var(--ink-soft);}
+  .tag.etapa{background:var(--green-soft);color:var(--green);font-weight:600;}
+  .tag.trava{background:var(--brick-soft);color:var(--brick);font-weight:600;}
+  .tag.dev{background:var(--amber-soft);color:var(--amber);font-weight:600;}
+  .tag.desc{background:var(--line-soft);color:var(--ink-soft);text-decoration:line-through;}
+  .tag.aula{background:var(--blue-soft);color:var(--blue);}
+  .tag.late{background:var(--brick-soft);color:var(--brick);}
+  .empty{color:var(--ink-soft);text-align:center;padding:36px 12px;font-size:15px;}
+  .sec{font-size:13px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.06em;margin:18px 0 8px;font-weight:600;}
+
+  /* Notebook: colunas por etapa */
+  .board{display:none;}
+  @media (min-width:900px){
+    .wrap{max-width:none;padding:0 24px;}
+    .hd{max-width:none;}
+    header{padding-left:24px;padding-right:24px;}
+    .tools{max-width:620px;}
+    body.modo-quadro .chips, body.modo-quadro .list{display:none;}
+    body.modo-quadro .board{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(250px,1fr);gap:12px;overflow-x:auto;padding-bottom:16px;align-items:start;}
+    .col{background:var(--line-soft);border-radius:12px;padding:10px;min-height:120px;}
+    .col h3{margin:2px 4px 10px;font-size:14px;display:flex;justify-content:space-between;}
+    .col h3 span{color:var(--ink-soft);font-weight:400;}
+    .col .card{margin-bottom:8px;padding:11px 12px;font-size:15px;}
+    .col .owner{font-size:12px;color:var(--ink-soft);margin:-6px 4px 10px;}
+  }
+
+  nav.tabs{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);border-top:1px solid var(--line);
+    display:grid;grid-template-columns:repeat(3,1fr);padding-bottom:env(safe-area-inset-bottom);
+  }
+  nav.tabs button{background:none;border:0;color:var(--ink-soft);padding:10px 4px 9px;font-size:13px;min-height:58px;display:flex;flex-direction:column;align-items:center;gap:2px;}
+  nav.tabs button .ic{font-size:20px;line-height:1;}
+  nav.tabs button[aria-current="page"]{color:var(--green);font-weight:700;}
+  .badge{display:inline-block;min-width:18px;padding:0 5px;border-radius:999px;background:var(--brick);color:#fff;font-size:11px;line-height:18px;margin-left:3px;}
+
+  .fab{
+    position:fixed;right:18px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:31;
+    width:58px;height:58px;border-radius:50%;border:0;background:var(--green);color:var(--on-green);
+    font-size:32px;line-height:1;box-shadow:0 4px 14px rgba(0,0,0,.25);
+  }
+
+  /* Folha (sheet) */
+  .veil{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;display:none;}
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--paper);
+    border-radius:16px 16px 0 0;max-height:92dvh;overflow-y:auto;display:none;
+    padding:8px 16px calc(18px + env(safe-area-inset-bottom));
+  }
+  @media (min-width:700px){.sheet{left:50%;right:auto;width:640px;transform:translateX(-50%);bottom:auto;top:4dvh;border-radius:16px;max-height:92dvh;}}
+  .open .veil,.open .sheet{display:block;}
+  .grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:4px auto 10px;}
+  .sh-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+  .sh-hd h2{font-family:Georgia,serif;font-size:20px;margin:2px 0 8px;font-weight:600;}
+  .x{background:none;border:0;font-size:26px;color:var(--ink-soft);padding:0 4px;line-height:1;}
+
+  .stepper{display:flex;gap:4px;margin:6px 0 14px;}
+  .stepper i{flex:1;height:6px;border-radius:3px;background:var(--line);}
+  .stepper i.on{background:var(--green);}
+  .stage-now{font-size:14px;color:var(--ink-soft);margin:-6px 0 12px;}
+  .stage-now b{color:var(--ink);}
+
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .btn{background:var(--green);color:var(--on-green);border:0;border-radius:12px;font-size:16px;font-weight:600;padding:13px;min-height:50px;}
+  .btn.full{grid-column:1/-1;}
+  .btn.ghost{background:var(--card);color:var(--ink);border:1px solid var(--line);font-weight:500;}
+  .btn.warn{background:var(--brick-soft);color:var(--brick);border:1px solid var(--brick);font-weight:600;}
+  .btn:disabled{opacity:.5;}
+
+  .box{background:var(--card);border:1px solid var(--line-soft);border-radius:12px;padding:14px;margin-bottom:12px;}
+  .field{margin-bottom:12px;} .field:last-child{margin-bottom:0;}
+  label{display:block;font-size:13px;color:var(--ink-soft);margin:0 0 5px;}
+  input[type=text],input[type=url],input[type=date],input[type=datetime-local],select,textarea{
+    width:100%;font-size:16px;font-family:inherit;color:var(--ink);background:var(--paper);
+    border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-height:46px;appearance:none;-webkit-appearance:none;
+  }
+  textarea{min-height:84px;resize:vertical;line-height:1.4;}
+  select{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%235B6259' stroke-width='2'/></svg>");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px;}
+  input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--green);outline-offset:1px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .multi{display:flex;flex-wrap:wrap;gap:6px;}
+  .linkout{font-size:13px;color:var(--blue);display:inline-block;margin-top:4px;word-break:break-all;}
+  details.more summary{cursor:pointer;color:var(--green);font-weight:600;padding:6px 0 10px;font-size:15px;}
+  .alert{border-radius:10px;padding:10px 12px;font-size:14px;margin-bottom:12px;}
+  .alert.trava{background:var(--brick-soft);color:var(--brick);}
+  .alert.dev{background:var(--amber-soft);color:var(--amber);}
+  .hist{list-style:none;margin:0;padding:0;font-size:14px;}
+  .hist li{padding:7px 0;border-bottom:1px solid var(--line-soft);display:flex;gap:10px;}
+  .hist li:last-child{border-bottom:0;}
+  .hist .d{color:var(--ink-soft);flex:none;font-variant-numeric:tabular-nums;}
+
+  .who{display:grid;gap:10px;margin:10px 0 4px;}
+  .who button{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;font-size:18px;font-weight:600;color:var(--ink);}
+
+  .toast{
+    position:fixed;left:16px;right:16px;bottom:calc(146px + env(safe-area-inset-bottom));max-width:480px;margin:0 auto;z-index:60;
+    background:var(--ink);color:var(--paper);border-radius:10px;padding:12px 14px;font-size:15px;
+    opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;text-align:center;
+  }
+  .toast.show{opacity:1;transform:none;}
+  .toast.err{background:var(--brick);color:#fff;}
+  .loading{color:var(--ink-soft);text-align:center;padding:40px 0;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hd">
+    <h1 id="titulo">Esteira</h1>
+    <button class="eu" id="btnEu" type="button">Eu: <b id="euNome">—</b></button>
+  </div>
+</header>
+
+<main class="wrap">
+  <div class="tools">
+    <input class="search" id="busca" type="search" placeholder="Buscar ideia…" autocomplete="off">
+    <button class="iconbtn" id="btnRecarregar" type="button" title="Atualizar" aria-label="Atualizar">↻</button>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="list" id="lista"><div class="loading">Carregando…</div></div>
+  <div class="board" id="quadro"></div>
+</main>
+
+<button class="fab" id="fab" type="button" aria-label="Nova ideia">+</button>
+
+<nav class="tabs">
+  <button type="button" data-tab="curso" aria-current="page"><span class="ic">🎓</span>Curso</button>
+  <button type="button" data-tab="post"><span class="ic">📣</span>Postagens</button>
+  <button type="button" data-tab="minhas"><span class="ic">✅</span><span>Minhas <span id="badgeMinhas"></span></span></button>
+</nav>
+
+<div id="sheetWrap">
+  <div class="veil" id="veil"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = "https://gqgxekjcmnostlxgfvlg.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdxZ3hla2pjbW5vc3RseGdmdmxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwMTU2MzAsImV4cCI6MjA4NjU5MTYzMH0.nzjiIPwevOtpRZSK9KRNzCjW5qI0z9iCBBGoknuTEmI";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ---------- Configuração das duas esteiras ---------- */
+const TIPOS = {
+  curso: {
+    tabela: 'curso_aulas', donoTabela: 'curso_etapa_dono', nome: 'Curso', item: 'aula',
+    etapas: [
+      ['ideia','Ideia'],['aprovada','Aprovada'],['roteiro','Roteiro'],['revisao','Revisão'],
+      ['gravacao','Gravação'],['edicao','Edição'],['pronto','Pronto'],['publicada','Publicada']
+    ],
+    dataFinal: 'publicada_em'
+  },
+  post: {
+    tabela: 'post_ideias', donoTabela: 'post_etapa_dono', nome: 'Postagens', item: 'post',
+    etapas: [
+      ['ideia','Ideia'],['aprovada','Aprovada'],['criacao','Criação'],['revisao','Revisão'],
+      ['agendado','Agendado'],['publicado','Publicado']
+    ],
+    dataFinal: 'publicado_em'
+  }
+};
+
+const S = {
+  aba: 'curso', filtro: 'ativas', busca: '',
+  eu: null, pessoas: [], redes: [], formatos: [],
+  dados: { curso: [], post: [] }, donos: { curso: {}, post: {} },
+  aberto: null
+};
+
+/* ---------- Utilidades ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hoje = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const fmtData = s => { if (!s) return ''; const [y,m,d] = String(s).slice(0,10).split('-'); return `${d}/${m}/${y.slice(2)}`; };
+const nomePessoa = id => (S.pessoas.find(p => p.id === id) || {}).nome || '—';
+const rotulo = (tipo, etapa) => (TIPOS[tipo].etapas.find(e => e[0] === etapa) || [etapa, etapa])[1];
+const idxEtapa = (tipo, etapa) => TIPOS[tipo].etapas.findIndex(e => e[0] === etapa);
+const ultima = tipo => TIPOS[tipo].etapas[TIPOS[tipo].etapas.length - 1][0];
+function partes(txt) { const [a, ...b] = String(txt || '').split('\t'); return { t: a.trim(), s: b.join(' ').trim() }; }
+function tituloDe(tipo, r) { return (tipo === 'curso' && r.titulo) ? r.titulo : partes(r.ideia).t; }
+function subDe(tipo, r) { return (tipo === 'curso' && r.titulo) ? partes(r.ideia).t : partes(r.ideia).s; }
+
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.className = 'toast', 2600);
+}
+function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+/* Quem é o dono da etapa atual de um item */
+function donoDe(tipo, r) {
+  if (tipo === 'curso' && r.etapa === 'roteiro') return r.roteirista || S.donos.curso['roteiro'] || null;
+  return S.donos[tipo][r.etapa] || null;
+}
+
+/* ---------- Carregar dados ---------- */
+async function carregar(silencioso) {
+  if (!silencioso) $('#lista').innerHTML = '<div class="loading">Carregando…</div>';
+  const [p, r, f, dc, dp, ac, ap] = await Promise.all([
+    db.from('curso_pessoas').select('id,nome').order('nome'),
+    db.from('post_redes').select('nome,ordem,ativo').order('ordem'),
+    db.from('post_formatos').select('nome,ordem,ativo').order('ordem'),
+    db.from('curso_etapa_dono').select('etapa,pessoa_id'),
+    db.from('post_etapa_dono').select('etapa,pessoa_id'),
+    db.from('curso_aulas').select('*').order('criado_em', { ascending: true }),
+    db.from('post_ideias').select('*').order('criado_em', { ascending: true })
+  ]);
+  const erro = [p, r, f, dc, dp, ac, ap].find(x => x.error);
+  if (erro) { $('#lista').innerHTML = '<div class="empty">Não consegui carregar os dados. Verifique a internet e toque em ↻.</div>'; toast('Erro ao carregar: ' + erro.error.message, true); return; }
+  S.pessoas = p.data;
+  S.redes = r.data.filter(x => x.ativo).map(x => x.nome);
+  S.formatos = f.data.filter(x => x.ativo).map(x => x.nome);
+  S.donos.curso = Object.fromEntries(dc.data.map(x => [x.etapa, x.pessoa_id]));
+  S.donos.post = Object.fromEntries(dp.data.map(x => [x.etapa, x.pessoa_id]));
+  S.dados.curso = ac.data; S.dados.post = ap.data;
+  const salvo = lsGet('esteira_eu');
+  S.eu = S.pessoas.find(x => x.id === salvo) ? salvo : null;
+  $('#euNome').textContent = S.eu ? nomePessoa(S.eu) : 'escolher';
+  render();
+  if (!S.eu) escolherPessoa();
+}
+
+/* ---------- Lista / quadro ---------- */
+function filtrarBusca(lista) {
+  const q = S.busca.trim().toLowerCase();
+  if (!q) return lista;
+  return lista.filter(r => [r.ideia, r.titulo, r.anotacoes, r.legenda, r.modulo].some(v => v && String(v).toLowerCase().includes(q)));
+}
+
+function cardHTML(tipo, r, mostrarTipo) {
+  const p = { t: tituloDe(tipo, r), s: subDe(tipo, r) };
+  const tags = [];
+  if (mostrarTipo) tags.push(`<span class="tag">${tipo === 'curso' ? '🎓 Aula' : '📣 Post'}</span>`);
+  if (r.descartada) tags.push('<span class="tag desc">Descartada</span>');
+  else tags.push(`<span class="tag etapa">${esc(rotulo(tipo, r.etapa))}</span>`);
+  if (r.travada) tags.push('<span class="tag trava">Travada</span>');
+  if (r.devolvido) tags.push('<span class="tag dev">Devolvida</span>');
+  if (tipo === 'post') {
+    if (r.formato) tags.push(`<span class="tag">${esc(r.formato)}</span>`);
+    (r.redes || []).forEach(n => tags.push(`<span class="tag">${esc(n)}</span>`));
+    if (r.aula_id) tags.push('<span class="tag aula">Ligado a aula</span>');
+    if (r.data_prevista) tags.push(`<span class="tag">📅 ${fmtData(r.data_prevista)}</span>`);
+  } else if (r.modulo) tags.push(`<span class="tag">${esc(r.modulo)}</span>`);
+  if (r.prazo && !r.descartada && r.etapa !== ultima(tipo)) {
+    const late = r.prazo < hoje();
+    tags.push(`<span class="tag${late ? ' late' : ''}">⏰ ${fmtData(r.prazo)}</span>`);
+  }
+  return `<button type="button" class="card" data-tipo="${tipo}" data-id="${r.id}">
+    <div class="t">${esc(p.t)}</div>${p.s ? `<div class="s">${esc(p.s)}</div>` : ''}
+    <div class="meta">${tags.join('')}</div></button>`;
+}
+
+function minhas() {
+  if (!S.eu) return [];
+  const out = [];
+  ['curso', 'post'].forEach(tipo => S.dados[tipo].forEach(r => {
+    if (r.descartada || r.etapa === ultima(tipo)) return;
+    if (donoDe(tipo, r) === S.eu) out.push([tipo, r]);
+  }));
+  return out;
+}
+
+function render() {
+  const nMinhas = minhas().length;
+  $('#badgeMinhas').innerHTML = nMinhas ? `<span class="badge">${nMinhas}</span>` : '';
+  document.querySelectorAll('nav.tabs button').forEach(b => b.setAttribute('aria-current', b.dataset.tab === S.aba ? 'page' : 'false'));
+  $('#titulo').textContent = S.aba === 'curso' ? 'Esteira · Curso' : S.aba === 'post' ? 'Esteira · Postagens' : 'Minhas tarefas';
+  $('#fab').style.display = S.aba === 'minhas' ? 'none' : '';
+  document.body.classList.toggle('modo-quadro', S.aba !== 'minhas');
+
+  if (S.aba === 'minhas') {
+    $('#chips').innerHTML = '';
+    const itens = minhas().filter(([t, r]) => filtrarBusca([r]).length);
+    if (!S.eu) { $('#lista').innerHTML = '<div class="empty">Escolha quem é você no topo para ver suas tarefas.</div>'; return; }
+    if (!itens.length) { $('#lista').innerHTML = '<div class="empty">Nada na sua mão agora. 🎉</div>'; return; }
+    const grupos = {};
+    itens.forEach(([t, r]) => { const k = `${t}|${r.etapa}`; (grupos[k] = grupos[k] || []).push([t, r]); });
+    let h = '';
+    Object.keys(grupos).sort((a, b) => {
+      const [ta, ea] = a.split('|'), [tb, eb] = b.split('|');
+      return ta === tb ? idxEtapa(ta, ea) - idxEtapa(tb, eb) : (ta === 'curso' ? -1 : 1);
+    }).forEach(k => {
+      const [t, e] = k.split('|');
+      h += `<div class="sec">${t === 'curso' ? 'Curso' : 'Postagens'} · ${esc(rotulo(t, e))} (${grupos[k].length})</div>`;
+      h += grupos[k].map(([tt, r]) => cardHTML(tt, r, false)).join('');
+    });
+    $('#lista').innerHTML = h;
+    return;
+  }
+
+  const tipo = S.aba, cfg = TIPOS[tipo];
+  const todas = filtrarBusca(S.dados[tipo]);
+  const ativas = todas.filter(r => !r.descartada);
+  const cont = e => ativas.filter(r => r.etapa === e).length;
+  const chips = [['ativas', 'Todas', ativas.length]]
+    .concat(cfg.etapas.map(([k, l]) => [k, l, cont(k)]))
+    .concat([['travadas', 'Travadas', ativas.filter(r => r.travada).length], ['descartadas', 'Descartadas', todas.filter(r => r.descartada).length]]);
+  $('#chips').innerHTML = chips.map(([k, l, n]) =>
+    `<button type="button" class="chip" data-f="${k}" aria-pressed="${S.filtro === k}">${esc(l)}<span class="n">${n}</span></button>`).join('');
+
+  let lista;
+  if (S.filtro === 'ativas') lista = ativas;
+  else if (S.filtro === 'travadas') lista = ativas.filter(r => r.travada);
+  else if (S.filtro === 'descartadas') lista = todas.filter(r => r.descartada);
+  else lista = ativas.filter(r => r.etapa === S.filtro);
+  // ordem: etapa, depois mais antigos primeiro
+  lista = lista.slice().sort((a, b) => idxEtapa(tipo, a.etapa) - idxEtapa(tipo, b.etapa));
+  $('#lista').innerHTML = lista.length ? lista.map(r => cardHTML(tipo, r)).join('')
+    : `<div class="empty">Nenhuma ${cfg.item === 'aula' ? 'aula' : 'postagem'} aqui.<br>Toque em <b>+</b> para anotar uma ideia.</div>`;
+
+  // quadro (notebook)
+  $('#quadro').innerHTML = cfg.etapas.map(([k, l]) => {
+    const itens = ativas.filter(r => r.etapa === k);
+    const dono = S.donos[tipo][k];
+    return `<div class="col"><h3>${esc(l)} <span>${itens.length}</span></h3>
+      ${dono ? `<div class="owner">com ${esc(nomePessoa(dono))}</div>` : ''}
+      ${itens.map(r => cardHTML(tipo, r)).join('')}</div>`;
+  }).join('');
+}
+
+/* ---------- Folha: escolher pessoa ---------- */
+function abrirSheet(html) { $('#sheet').innerHTML = '<div class="grab"></div>' + html; $('#sheetWrap').classList.add('open'); $('#sheet').scrollTop = 0; }
+function fecharSheet() { $('#sheetWrap').classList.remove('open'); S.aberto = null; }
+
+function escolherPessoa() {
+  abrirSheet(`<div class="sh-hd"><h2>Quem está usando?</h2>${S.eu ? '<button class="x" data-close>×</button>' : ''}</div>
+    <p style="margin:0;color:var(--ink-soft);font-size:15px">Fica salvo neste aparelho. Serve para registrar quem fez cada mudança e mostrar as suas tarefas.</p>
+    <div class="who">${S.pessoas.map(p => `<button type="button" data-eu="${p.id}">${esc(p.nome)}</button>`).join('')}</div>`);
+}
+
+/* ---------- Folha: nova ideia ---------- */
+function novaIdeia(tipo, aulaOrigem) {
+  const isPost = tipo === 'post';
+  const sugestao = aulaOrigem ? tituloDe('curso', aulaOrigem) : '';
+  abrirSheet(`<div class="sh-hd"><h2>${isPost ? 'Nova ideia de post' : 'Nova ideia de aula'}</h2><button class="x" data-close>×</button></div>
+    <form id="fNova">
+      <div class="box">
+        <div class="field"><label for="nIdeia">Ideia</label>
+          <textarea id="nIdeia" required placeholder="${isPost ? 'Ex.: Reels mostrando orçamento feito em 2 minutos' : 'Ex.: Como usar IA para responder clientes'}">${esc(sugestao)}</textarea></div>
+        <div class="field"><label for="nNotas">Anotações (opcional)</label>
+          <input type="text" id="nNotas" placeholder="Onde viu, referência, detalhe…"></div>
+        ${isPost ? `
+        <div class="field"><label>Redes</label><div class="multi" id="nRedes">
+          ${S.redes.map(n => `<button type="button" class="chip" data-rede="${esc(n)}" aria-pressed="false">${esc(n)}</button>`).join('')}</div></div>
+        <div class="row2">
+          <div class="field"><label for="nFormato">Formato</label><select id="nFormato"><option value="">—</option>
+            ${S.formatos.map(n => `<option>${esc(n)}</option>`).join('')}</select></div>
+          <div class="field"><label for="nData">Data prevista</label><input type="date" id="nData"></div>
+        </div>
+        <div class="field"><label for="nAula">Ligado a qual aula? (opcional)</label>${selectAulas('nAula', aulaOrigem ? aulaOrigem.id : '')}</div>` : ''}
+      </div>
+      <button class="btn full" type="submit" style="width:100%">Salvar ideia</button>
+    </form>`);
+  setTimeout(() => $('#nIdeia').focus(), 50);
+  $('#fNova').onsubmit = async ev => {
+    ev.preventDefault();
+    const ideia = $('#nIdeia').value.trim(); if (!ideia) return;
+    const row = { ideia, anotacoes: $('#nNotas').value.trim() || null, sugerido_por: S.eu,
+      historico: [{ em: hoje(), txt: `Ideia anotada por ${nomePessoa(S.eu)}` }] };
+    if (isPost) {
+      row.redes = [...document.querySelectorAll('#nRedes [aria-pressed="true"]')].map(b => b.dataset.rede);
+      row.formato = $('#nFormato').value || null;
+      row.data_prevista = $('#nData').value || null;
+      row.aula_id = $('#nAula').value || null;
+    }
+    const btn = ev.submitter || $('#fNova button[type=submit]'); btn.disabled = true;
+    const { data, error } = await db.from(TIPOS[tipo].tabela).insert(row).select().single();
+    btn.disabled = false;
+    if (error) return toast('Não salvou: ' + error.message, true);
+    S.dados[tipo].push(data); fecharSheet();
+    if (S.aba !== tipo) { S.aba = tipo; S.filtro = 'ativas'; }
+    render(); toast('Ideia salva ✓');
+  };
+}
+
+function selectAulas(id, valor) {
+  const aulas = S.dados.curso.filter(a => !a.descartada);
+  return `<select id="${id}"><option value="">— nenhuma —</option>${aulas.map(a =>
+    `<option value="${a.id}" ${a.id === valor ? 'selected' : ''}>${esc(tituloDe('curso', a))}</option>`).join('')}</select>`;
+}
+function selectPessoa(id, valor) {
+  return `<select id="${id}"><option value="">—</option>${S.pessoas.map(p =>
+    `<option value="${p.id}" ${p.id === valor ? 'selected' : ''}>${esc(p.nome)}</option>`).join('')}</select>`;
+}
+function linkInfo(v) { return v && /^https?:\/\//i.test(v) ? `<a class="linkout" href="${esc(v)}" target="_blank" rel="noopener">Abrir link ↗</a>` : ''; }
+
+/* ---------- Folha: ficha do item ---------- */
+function abrirFicha(tipo, id) {
+  const r = S.dados[tipo].find(x => x.id === id); if (!r) return;
+  S.aberto = { tipo, id };
+  const cfg = TIPOS[tipo], i = idxEtapa(tipo, r.etapa), fim = i === cfg.etapas.length - 1;
+  const prox = !fim ? cfg.etapas[i + 1] : null;
+  const dono = donoDe(tipo, r);
+  const F = (k, l, type = 'text', ph = '') => `<div class="field"><label for="f_${k}">${l}</label>
+    <input type="${type}" id="f_${k}" value="${esc(type === 'date' ? (r[k] || '').slice(0, 10) : type === 'datetime-local' ? toLocalDT(r[k]) : r[k])}" placeholder="${esc(ph)}">${type === 'url' ? linkInfo(r[k]) : ''}</div>`;
+  const T = (k, l, ph = '') => `<div class="field"><label for="f_${k}">${l}</label><textarea id="f_${k}" placeholder="${esc(ph)}">${esc(r[k])}</textarea></div>`;
+
+  let campos;
+  if (tipo === 'curso') {
+    campos = `
+      <div class="box">
+        ${T('ideia', 'Ideia')}
+        ${F('titulo', 'Título da aula')}
+        <div class="row2">${F('modulo', 'Módulo')}${F('prazo', 'Prazo', 'date')}</div>
+        ${F('anotacoes', 'Anotações')}
+      </div>
+      <details class="more"${i >= 1 ? ' open' : ''}><summary>Planejamento e roteiro</summary><div class="box">
+        ${T('objetivo', 'Objetivo da aula', 'O que o aluno vai conseguir fazer depois')}
+        <div class="row2"><div class="field"><label for="f_roteirista">Roteirista</label>${selectPessoa('f_roteirista', r.roteirista)}</div>${F('duracao', 'Duração', 'text', 'Ex.: 8 min')}</div>
+        <div class="row2">${F('formato', 'Formato', 'text', 'Tela, câmera…')}${F('ferramentas', 'Ferramentas')}</div>
+        ${T('descricao', 'Descrição (para a Hotmart)')}
+        ${F('link_roteiro', 'Link do roteiro', 'url')}
+      </div></details>
+      <details class="more"${i >= 4 ? ' open' : ''}><summary>Gravação, edição e publicação</summary><div class="box">
+        ${F('link_bruto', 'Link do vídeo bruto', 'url')}
+        ${F('link_final', 'Link do vídeo final', 'url')}
+        ${F('link_hotmart', 'Link na Hotmart', 'url')}
+        ${F('publicada_em', 'Publicada em', 'date')}
+      </div></details>`;
+  } else {
+    const redes = r.redes || [];
+    campos = `
+      <div class="box">
+        ${T('ideia', 'Ideia')}
+        <div class="field"><label>Redes</label><div class="multi" id="fRedes">
+          ${S.redes.map(n => `<button type="button" class="chip" data-rede="${esc(n)}" aria-pressed="${redes.includes(n)}">${esc(n)}</button>`).join('')}</div></div>
+        <div class="row2">
+          <div class="field"><label for="f_formato">Formato</label><select id="f_formato"><option value="">—</option>
+            ${S.formatos.map(n => `<option ${n === r.formato ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+          ${F('data_prevista', 'Data prevista', 'date')}
+        </div>
+        <div class="field"><label for="f_aula_id">Aula ligada</label>${selectAulas('f_aula_id', r.aula_id)}</div>
+        <div class="row2">${F('objetivo', 'Objetivo', 'text', 'Alcance, venda, autoridade…')}${F('prazo', 'Prazo', 'date')}</div>
+        ${F('anotacoes', 'Anotações')}
+      </div>
+      <details class="more"${i >= 2 ? ' open' : ''}><summary>Criação</summary><div class="box">
+        ${T('legenda', 'Legenda')}
+        ${F('hashtags', 'Hashtags')}
+        ${F('link_arte', 'Link da arte / vídeo', 'url')}
+      </div></details>
+      <details class="more"${i >= 4 ? ' open' : ''}><summary>Agendamento e publicação</summary><div class="box">
+        ${F('agendado_em', 'Agendado para', 'datetime-local')}
+        ${F('link_post', 'Link do post publicado', 'url')}
+        ${F('publicado_em', 'Publicado em', 'date')}
+      </div></details>`;
+  }
+
+  const hist = (r.historico || []).slice().reverse();
+  abrirSheet(`
+    <div class="sh-hd"><h2>${esc(tituloDe(tipo, r))}</h2><button class="x" data-close>×</button></div>
+    <div class="stepper">${cfg.etapas.map((e, k) => `<i class="${k <= i ? 'on' : ''}" title="${esc(e[1])}"></i>`).join('')}</div>
+    <div class="stage-now">${r.descartada ? '<b>Descartada</b>' : `Etapa: <b>${esc(rotulo(tipo, r.etapa))}</b>${dono ? ` · com <b>${esc(nomePessoa(dono))}</b>` : ''}`}</div>
+    ${r.travada ? `<div class="alert trava">🔒 Travada${r.motivo_trava ? ': ' + esc(r.motivo_trava) : ''}</div>` : ''}
+    ${r.devolvido ? `<div class="alert dev">↩︎ Devolvida${r.comentario ? ': ' + esc(r.comentario) : ''}</div>` : ''}
+
+    <div class="acts">
+      ${r.descartada
+        ? `<button class="btn full" data-act="restaurar">Restaurar ideia</button>`
+        : `${prox ? `<button class="btn full" data-act="avancar" ${r.travada ? 'disabled' : ''}>Avançar para ${esc(prox[1])} →</button>` : `<div class="btn full ghost" style="text-align:center">✓ Concluída</div>`}
+           <button class="btn ghost" data-act="devolver" ${i === 0 ? 'disabled' : ''}>↩︎ Devolver</button>
+           <button class="btn ghost" data-act="${r.travada ? 'destravar' : 'travar'}">${r.travada ? '🔓 Destravar' : '🔒 Travar'}</button>
+           ${tipo === 'curso' ? `<button class="btn ghost full" data-act="criarpost">📣 Criar post desta aula</button>` : ''}`}
+    </div>
+
+    <form id="fFicha">
+      ${campos}
+      <button class="btn" type="submit" style="width:100%;margin-bottom:12px">Salvar alterações</button>
+    </form>
+
+    ${tipo === 'post' && r.aula_id ? (() => { const a = S.dados.curso.find(x => x.id === r.aula_id); return a ? `<button type="button" class="btn ghost" style="width:100%;margin-bottom:12px" data-ir-aula="${a.id}">🎓 Ver aula: ${esc(tituloDe('curso', a))}</button>` : ''; })() : ''}
+    ${tipo === 'curso' ? (() => { const ps = S.dados.post.filter(p => p.aula_id === r.id && !p.descartada); return ps.length ? `<div class="sec">Posts desta aula (${ps.length})</div><div class="list" style="margin-bottom:12px">${ps.map(p => cardHTML('post', p)).join('')}</div>` : ''; })() : ''}
+
+    <div class="sec">Histórico</div>
+    <div class="box"><ul class="hist">${hist.length ? hist.map(h => `<li><span class="d">${fmtData(h.em)}</span><span>${esc(h.txt)}</span></li>`).join('') : '<li>Sem registros.</li>'}</ul></div>
+    ${!r.descartada ? `<button class="btn warn" data-act="descartar" style="width:100%;margin-top:4px">Descartar ideia</button>` : ''}
+    <p style="text-align:center;color:var(--ink-soft);font-size:12px;margin:14px 0 0">Anotada em ${fmtData(r.criado_em)}${r.sugerido_por ? ' por ' + esc(nomePessoa(r.sugerido_por)) : ''}</p>
+  `);
+
+  $('#fFicha').onsubmit = async ev => { ev.preventDefault(); await salvarCampos(tipo, r, 'Dados atualizados'); };
+}
+
+function toLocalDT(v) {
+  if (!v) return '';
+  const d = new Date(v); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+function lerCampos(tipo) {
+  const v = id => { const el = document.getElementById('f_' + id); return el ? (el.value.trim() || null) : undefined; };
+  const keys = tipo === 'curso'
+    ? ['ideia','titulo','modulo','prazo','anotacoes','objetivo','roteirista','duracao','formato','ferramentas','descricao','link_roteiro','link_bruto','link_final','link_hotmart','publicada_em']
+    : ['ideia','formato','data_prevista','aula_id','objetivo','prazo','anotacoes','legenda','hashtags','link_arte','link_post','publicado_em'];
+  const out = {};
+  keys.forEach(k => { const x = v(k); if (x !== undefined) out[k] = x; });
+  if (tipo === 'post') {
+    out.redes = [...document.querySelectorAll('#fRedes [aria-pressed="true"]')].map(b => b.dataset.rede);
+    const ag = v('agendado_em'); out.agendado_em = ag ? new Date(ag).toISOString() : null;
+  }
+  if (!out.ideia) delete out.ideia;
+  return out;
+}
+
+async function gravar(tipo, r, patch, msg) {
+  patch.atualizado_em = new Date().toISOString();
+  const { data, error } = await db.from(TIPOS[tipo].tabela).update(patch).eq('id', r.id).select().single();
+  if (error) { toast('Não salvou: ' + error.message, true); return null; }
+  const lista = S.dados[tipo]; lista[lista.findIndex(x => x.id === r.id)] = data;
+  render(); if (msg) toast(msg);
+  return data;
+}
+
+async function salvarCampos(tipo, r, msg) {
+  const patch = lerCampos(tipo);
+  const d = await gravar(tipo, r, patch, msg);
+  if (d) abrirFicha(tipo, d.id);
+}
+
+function addHist(r, txt) { return (r.historico || []).concat([{ em: hoje(), txt: `${txt} (${nomePessoa(S.eu)})` }]); }
+
+async function acao(act) {
+  const { tipo, id } = S.aberto || {}; if (!tipo) return;
+  let r = S.dados[tipo].find(x => x.id === id);
+  const cfg = TIPOS[tipo], i = idxEtapa(tipo, r.etapa);
+  // guarda o que foi digitado antes de qualquer ação
+  const patch = (act === 'criarpost') ? {} : lerCampos(tipo);
+
+  if (act === 'avancar') {
+    const prox = cfg.etapas[i + 1]; if (!prox) return;
+    patch.etapa = prox[0]; patch.devolvido = false;
+    if (prox[0] === ultima(tipo) && !patch[cfg.dataFinal] && !r[cfg.dataFinal]) patch[cfg.dataFinal] = hoje();
+    patch.historico = addHist(r, `${rotulo(tipo, r.etapa)} → ${prox[1]}`);
+    const d = await gravar(tipo, r, patch, `Avançou para ${prox[1]} ✓`);
+    if (d) abrirFicha(tipo, d.id);
+  } else if (act === 'devolver') {
+    if (i === 0) return;
+    const ant = cfg.etapas[i - 1];
+    const motivo = prompt(`Devolver para "${ant[1]}". O que precisa ajustar?`);
+    if (motivo === null) return;
+    patch.etapa = ant[0]; patch.devolvido = true; patch.comentario = motivo.trim() || null;
+    patch.historico = addHist(r, `Devolvida de ${rotulo(tipo, r.etapa)} para ${ant[1]}${motivo.trim() ? ': ' + motivo.trim() : ''}`);
+    const d = await gravar(tipo, r, patch, 'Devolvida'); if (d) abrirFicha(tipo, d.id);
+  } else if (act === 'travar') {
+    const motivo = prompt('Por que está travada?'); if (motivo === null) return;
+    patch.travada = true; patch.motivo_trava = motivo.trim() || null;
+    patch.historico = addHist(r, `Travada${motivo.trim() ? ': ' + motivo.trim() : ''}`);
+    const d = await gravar(tipo, r, patch, 'Travada 🔒'); if (d) abrirFicha(tipo, d.id);
+  } else if (act === 'destravar') {
+    patch.travada = false; patch.motivo_trava = null;
+    patch.historico = addHist(r, 'Destravada');
+    const d = await gravar(tipo, r, patch, 'Destravada 🔓'); if (d) abrirFicha(tipo, d.id);
+  } else if (act === 'descartar') {
+    if (!confirm('Descartar esta ideia? Ela vai para a lista "Descartadas" e pode ser restaurada depois.')) return;
+    patch.descartada = true; patch.historico = addHist(r, 'Descartada');
+    const d = await gravar(tipo, r, patch, 'Ideia descartada'); if (d) fecharSheet();
+  } else if (act === 'restaurar') {
+    patch.descartada = false; patch.historico = addHist(r, 'Restaurada');
+    const d = await gravar(tipo, r, patch, 'Ideia restaurada ✓'); if (d) abrirFicha(tipo, d.id);
+  } else if (act === 'criarpost') {
+    novaIdeia('post', r);
+  }
+}
+
+/* ---------- Eventos ---------- */
+document.addEventListener('click', ev => {
+  const t = ev.target;
+  const tab = t.closest('nav.tabs button');
+  if (tab) { S.aba = tab.dataset.tab; S.filtro = 'ativas'; render(); window.scrollTo(0, 0); return; }
+  const chip = t.closest('#chips .chip');
+  if (chip) { S.filtro = chip.dataset.f; render(); return; }
+  const rede = t.closest('[data-rede]');
+  if (rede) { rede.setAttribute('aria-pressed', rede.getAttribute('aria-pressed') !== 'true'); return; }
+  const card = t.closest('.card[data-id]');
+  if (card) { abrirFicha(card.dataset.tipo, card.dataset.id); return; }
+  const irAula = t.closest('[data-ir-aula]');
+  if (irAula) { abrirFicha('curso', irAula.dataset.irAula); return; }
+  const eu = t.closest('[data-eu]');
+  if (eu) { S.eu = eu.dataset.eu; lsSet('esteira_eu', S.eu); $('#euNome').textContent = nomePessoa(S.eu); fecharSheet(); render(); toast(`Olá, ${nomePessoa(S.eu)}!`); return; }
+  const act = t.closest('[data-act]');
+  if (act && !act.disabled) { acao(act.dataset.act); return; }
+  if (t.closest('[data-close]') || t.id === 'veil') { if (S.eu) fecharSheet(); return; }
+});
+$('#fab').onclick = () => { if (!S.eu) return escolherPessoa(); novaIdeia(S.aba === 'post' ? 'post' : 'curso'); };
+$('#btnEu').onclick = escolherPessoa;
+$('#btnRecarregar').onclick = () => carregar().then(() => toast('Atualizado'));
+$('#busca').oninput = e => { S.busca = e.target.value; render(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.eu) fecharSheet(); });
+// Ao voltar para o app, busca novidades (ex.: o João mexeu em algo)
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#sheetWrap').classList.contains('open')) carregar(true); });
+
+if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+carregar();
+</script>
+</body>
+</html>
