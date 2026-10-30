@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Instagram</title>
+<meta name="theme-color" content="#2f6b4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Instagram">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest-instagram.json">
+<link rel="apple-touch-icon" href="apple-touch-instagram.png">
+<link rel="icon" type="image/png" href="instagram-192.png">
+<style>
+  :root { --bg:#f6f5f2; --panel:#fff; --ink:#1f2a24; --muted:#6b7570; --line:#dfe0da; --accent:#2f6b4f; --accent-dark:#234f3a; --soft:#e8f1ec; --warn:#a4442d; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); min-height:100dvh; font-size:16px; }
+  button, input, select { font:inherit; color:inherit; }
+  .wrap { max-width:640px; margin:0 auto; padding:max(10px,env(safe-area-inset-top)) 12px max(28px,env(safe-area-inset-bottom)); }
+  h1 { font-size:1.25rem; margin:6px 0 10px; }
+  .top { position:sticky; top:0; z-index:5; background:var(--bg); padding-bottom:8px; }
+  input[type=text], input[type=search], input[type=tel], select { width:100%; padding:11px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; font-size:16px; }
+  .filtros { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .resumo { margin:10px 2px 6px; font-size:.88rem; color:var(--muted); display:flex; justify-content:space-between; gap:8px; align-items:center; }
+  .link { background:none; border:0; color:var(--accent); font-weight:600; padding:6px 4px; cursor:pointer; font-size:.9rem; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:12px 14px; margin-bottom:10px; }
+  .card.ok { background:#f1f6f3; }
+  .nome { font-weight:700; }
+  .sub { color:var(--muted); font-size:.85rem; margin-top:2px; }
+  .insta { margin-top:8px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .insta a.h { font-weight:700; font-size:1.05rem; color:var(--accent-dark); word-break:break-all; }
+  .acoes { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+  .btn { border:1px solid var(--accent); background:#fff; color:var(--accent); border-radius:10px; padding:10px 14px; font-weight:600; font-size:.95rem; text-decoration:none; display:inline-block; cursor:pointer; }
+  .btn.pri { background:var(--accent); color:#fff; flex:1; text-align:center; }
+  .btn.peq { padding:7px 11px; font-size:.85rem; }
+  .tag { display:inline-block; font-size:.78rem; font-weight:700; padding:3px 10px; border-radius:999px; background:#d8ecdf; color:var(--accent-dark); }
+  .vazio { text-align:center; color:var(--muted); padding:26px 8px; }
+  .msg { position:fixed; left:12px; right:12px; bottom:max(14px,env(safe-area-inset-bottom)); background:#1f2a24; color:#fff; border-radius:12px; padding:12px 14px; font-size:.92rem; z-index:30; display:none; }
+  .msg.on { display:block; }
+  .msg.erro { background:var(--warn); }
+  .edita { display:flex; gap:8px; margin-top:8px; align-items:center; }
+  .edita input { flex:1; }
+  #pin { position:fixed; inset:0; background:var(--bg); z-index:50; display:none; align-items:center; justify-content:center; padding:20px; }
+  #pin.on { display:flex; }
+  #pin .box { background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px 20px; width:100%; max-width:320px; text-align:center; }
+  #pinIn { text-align:center; letter-spacing:.5em; font-size:1.6rem; }
+  .erro-txt { color:var(--warn); font-size:.85rem; min-height:1em; margin-top:10px; }
+  .oculto { display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="pin">
+  <div class="box">
+    <h1>Instagram</h1>
+    <p style="color:var(--muted);margin:0 0 14px">Digite o PIN</p>
+    <input id="pinIn" type="tel" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••">
+    <div id="pinMsg" class="erro-txt"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app">
+  <div class="top">
+    <h1>Postagens do Instagram</h1>
+    <input id="busca" type="search" placeholder="Buscar nome ou @...">
+    <div class="filtros">
+      <select id="fSit">
+        <option value="apostar">A postar</option>
+        <option value="postados">Já postados</option>
+        <option value="">Todos</option>
+      </select>
+      <select id="fTurma"><option value="">Todas as turmas</option></select>
+    </div>
+    <div style="margin-top:8px"><select id="quem"></select></div>
+  </div>
+  <div class="resumo"><span id="resumo">Carregando...</span><button class="link" id="atualizar" type="button">Atualizar</button></div>
+  <div id="lista"></div>
+</div>
+<div class="msg" id="msg"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://gqgxekjcmnostlxgfvlg.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_UBuz0ZvBKbFmGR9JCNCwEw_nlo4xIDc';
+  var PIN = '5085';
+  var META_DIA = 3;
+  var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  var itens = [], editando = null, msgT = null;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+  function fmtData(s) { if (!s) return ''; var p = String(s).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s; }
+  function diaLocal(iso) { var d = new Date(iso); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function hojeISO() { return diaLocal(new Date()); }
+  function igHandle(v) {
+    var h = String(v || '').trim();
+    return h.replace(/^(https?:\/\/)?(www\.)?instagram\.com\//i, '').replace(/[\/?#].*$/, '').replace(/^@+/, '').trim();
+  }
+  function bonito(n) { return String(n || '').toLowerCase().replace(/(^|\s)(\p{L})/gu, function (m, a, b) { return a + b.toUpperCase(); }).replace(/\b(Da|De|Do|Das|Dos|E)\b/g, function (x) { return x.toLowerCase(); }); }
+  function whatsLink(whats, nome) {
+    var f = String(whats || '').replace(/\D/g, '');
+    if (f.length < 10) return '';
+    if (f.length === 10 || f.length === 11) f = '55' + f;
+    var primeiro = String(nome || '').trim().split(' ')[0] || '';
+    return 'https://wa.me/' + f + '?text=' + encodeURIComponent('Olá, ' + primeiro + '! Aqui é a Imaginarium Formaturas. ');
+  }
+  function aviso(txt, erro) {
+    var m = $('msg'); m.textContent = txt; m.className = 'msg on' + (erro ? ' erro' : '');
+    clearTimeout(msgT); msgT = setTimeout(function () { m.className = 'msg'; }, erro ? 6000 : 2600);
+  }
+  async function paginar(montar) {
+    var out = [];
+    for (var de = 0; ; de += 1000) {
+      var r = await montar().range(de, de + 999);
+      if (r.error) throw r.error;
+      out = out.concat(r.data || []);
+      if (!r.data || r.data.length < 1000) break;
+    }
+    return out;
+  }
+  async function mapa(tabela, colId, colNome) {
+    var r = await db.from(tabela).select(colId + ', ' + colNome);
+    var m = {}; (r.data || []).forEach(function (x) { m[x[colId]] = x[colNome]; }); return m;
+  }
+
+  /* ---------- PIN ---------- */
+  function iniciar() {
+    if (lsGet('igPinOk') === '1') { $('pin').classList.remove('on'); carregar(); return; }
+    $('pin').classList.add('on'); $('app').classList.add('oculto'); $('pinIn').focus();
+  }
+  $('pinIn').addEventListener('input', function () {
+    var v = this.value.replace(/\D/g, ''); this.value = v;
+    if (v.length === 4) {
+      if (v === PIN) { lsSet('igPinOk', '1'); $('pin').classList.remove('on'); $('app').classList.remove('oculto'); carregar(); }
+      else { $('pinMsg').textContent = 'PIN incorreto.'; this.value = ''; }
+    }
+  });
+
+  /* ---------- Dados ---------- */
+  async function carregar() {
+    $('lista').innerHTML = '<div class="vazio">Carregando...</div>';
+    try {
+      var eqR = await db.from('FormEquipe').select('Nome').order('Nome');
+      var lembrado = lsGet('igQuem') || '';
+      $('quem').innerHTML = '<option value="">Quem está postando? (não informar)</option>' + (eqR.data || []).map(function (q) { return '<option value="' + esc(q.Nome) + '">' + esc(q.Nome) + '</option>'; }).join('');
+      $('quem').value = lembrado;
+
+      var res = await Promise.all([
+        paginar(function () { return db.from('FormEnvioFoto').select('IdFormando, EnviadoEm').eq('Status', 'enviado').order('idEnvio'); }),
+        db.from('FormTurma').select('idTurma, IdFaculdade, IdCurso, IdSemestre, Identificacao'),
+        mapa('FormFaculdade', 'IdFaculdade', 'NomeFaculdade'), mapa('FormCurso', 'idCurso', 'NomeCurso'), mapa('FormSemestre', 'idSemestre', 'NomeSemestre')
+      ]);
+      var envios = res[0], turmasR = res[1], mFac = res[2], mCur = res[3], mSem = res[4];
+      var turmas = {};
+      (turmasR.data || []).forEach(function (t) {
+        var id = t.Identificacao ? String(t.Identificacao).trim() : '';
+        var cur = (mCur[t.IdCurso] || '—') + (id ? ' (' + (id.length <= 2 ? 'Turma ' + id : id) + ')' : '');
+        turmas[t.idTurma] = { fac: mFac[t.IdFaculdade] || '—', nome: cur + ' ' + (mSem[t.IdSemestre] || '') };
+      });
+      var enviadoEm = {}, ids = [];
+      envios.forEach(function (e) { if (!(e.IdFormando in enviadoEm)) ids.push(e.IdFormando); enviadoEm[e.IdFormando] = e.EnviadoEm; });
+      itens = [];
+      for (var k = 0; k < ids.length; k += 150) {
+        var r = await db.from('FormFormando').select('idFormando, IdTurma, FormandoNome, FormandoSobrenome, Whats, Instagram, InstagramPostadoEm, InstagramPostadoPor, FormAtivo').in('idFormando', ids.slice(k, k + 150));
+        if (r.error) throw r.error;
+        (r.data || []).filter(function (f) { return f.FormAtivo !== false && igHandle(f.Instagram); }).forEach(function (f) {
+          var t = turmas[f.IdTurma] || { fac: '—', nome: 'Turma ' + f.IdTurma };
+          itens.push({ id: f.idFormando, idTurma: f.IdTurma, handle: igHandle(f.Instagram), whats: f.Whats,
+            nome: bonito(((f.FormandoNome || '') + ' ' + (f.FormandoSobrenome || '')).trim()), fac: t.fac, turma: t.nome,
+            enviadoEm: enviadoEm[f.idFormando], postadoEm: f.InstagramPostadoEm, postadoPor: f.InstagramPostadoPor });
+        });
+      }
+      var tt = {}; itens.forEach(function (i) { tt[i.idTurma] = i.fac + ' - ' + i.turma; });
+      var sel = $('fTurma'), atual = sel.value;
+      sel.innerHTML = '<option value="">Todas as turmas</option>' + Object.keys(tt).sort(function (a, b) { return tt[a].localeCompare(tt[b]); }).map(function (id) { return '<option value="' + id + '">' + esc(tt[id]) + '</option>'; }).join('');
+      sel.value = tt[atual] ? atual : '';
+      render();
+    } catch (e) {
+      $('lista').innerHTML = '<div class="vazio">Erro ao carregar: ' + esc(e.message || e) + '</div>';
+    }
+  }
+
+  function render() {
+    var sit = $('fSit').value, turma = $('fTurma').value, busca = norm($('busca').value.replace(/^@/, ''));
+    var hoje = hojeISO();
+    var postadoHoje = itens.filter(function (i) { return i.postadoEm && diaLocal(i.postadoEm) === hoje; }).length;
+    var aPostar = itens.filter(function (i) { return !i.postadoEm; }).length;
+    $('resumo').textContent = 'Hoje: ' + postadoHoje + ' de ' + META_DIA + ' postados · ' + aPostar + ' na fila';
+    var lista = itens.filter(function (i) {
+      return (sit === '' || (sit === 'apostar' ? !i.postadoEm : !!i.postadoEm)) && (!turma || String(i.idTurma) === turma) && (!busca || norm(i.nome + ' ' + i.handle).indexOf(busca) >= 0);
+    });
+    lista.sort(function (a, b) {
+      if (sit === 'postados') return String(b.postadoEm || '').localeCompare(String(a.postadoEm || ''));
+      return String(a.enviadoEm || '').localeCompare(String(b.enviadoEm || '')) || a.fac.localeCompare(b.fac) || a.turma.localeCompare(b.turma) || a.nome.localeCompare(b.nome);
+    });
+    if (!lista.length) { $('lista').innerHTML = '<div class="vazio">' + (itens.length ? 'Ninguém com esses filtros.' : 'Nenhum formando recebeu a foto tratada e tem Instagram cadastrado ainda.') + '</div>'; return; }
+    $('lista').innerHTML = lista.map(function (i) {
+      var w = whatsLink(i.whats, i.nome);
+      var linhaInsta = editando === i.id
+        ? '<div class="edita"><span>@</span><input type="text" id="edIn" value="' + esc(i.handle) + '" autocapitalize="none" autocorrect="off" spellcheck="false"><button class="btn peq" data-a="salvar" data-id="' + i.id + '">Salvar</button><button class="link" data-a="cancelar">Cancelar</button></div>'
+        : '<div class="insta"><a class="h" href="https://www.instagram.com/' + encodeURIComponent(i.handle) + '/" target="_blank" rel="noopener">@' + esc(i.handle) + '</a>' +
+          '<button class="btn peq" data-a="copiar" data-h="' + esc(i.handle) + '">Copiar</button><button class="btn peq" data-a="editar" data-id="' + i.id + '">Editar @</button></div>';
+      var acoes = i.postadoEm
+        ? '<div class="acoes"><span class="tag">Postado ' + fmtData(diaLocal(i.postadoEm)) + (i.postadoPor ? ' por ' + esc(i.postadoPor) : '') + '</span><button class="link" data-a="desfazer" data-id="' + i.id + '">desfazer</button></div>'
+        : '<div class="acoes"><button class="btn pri" data-a="postado" data-id="' + i.id + '">✔ Postado</button>' + (w ? '<a class="btn" href="' + w + '" target="_blank" rel="noopener">WhatsApp</a>' : '') + '</div>';
+      return '<div class="card' + (i.postadoEm ? ' ok' : '') + '"><div class="nome">' + esc(i.nome) + '</div><div class="sub">' + esc(i.fac) + ' · ' + esc(i.turma) + '</div>' +
+        '<div class="sub">Foto enviada em ' + (i.enviadoEm ? fmtData(String(i.enviadoEm).slice(0, 10)) : '—') + '</div>' + linhaInsta + acoes + '</div>';
+    }).join('');
+    if (editando != null) { var inp = $('edIn'); if (inp) { inp.focus(); inp.select(); } }
+  }
+
+  async function marcar(id, postado) {
+    var it = itens.filter(function (x) { return x.id === id; })[0]; if (!it) return;
+    var quem = $('quem').value || null;
+    var upd = postado ? { InstagramPostadoEm: new Date().toISOString(), InstagramPostadoPor: quem } : { InstagramPostadoEm: null, InstagramPostadoPor: null };
+    var r = await db.from('FormFormando').update(upd).eq('idFormando', id);
+    if (r.error) return aviso('Erro ao salvar: ' + r.error.message, true);
+    it.postadoEm = upd.InstagramPostadoEm; it.postadoPor = upd.InstagramPostadoPor;
+    aviso(postado ? it.nome + ' marcado como postado.' : 'Baixa desfeita para ' + it.nome + '.');
+    render();
+  }
+  async function salvarInsta(id) {
+    var it = itens.filter(function (x) { return x.id === id; })[0]; if (!it) return;
+    var novo = igHandle($('edIn').value);
+    if (!/^[A-Za-z0-9._]{1,30}$/.test(novo)) return aviso('Instagram inválido. Use só letras, números, ponto e sublinhado.', true);
+    if (novo === it.handle) { editando = null; return render(); }
+    var r = await db.from('FormFormando').update({ Instagram: novo }).eq('idFormando', id);
+    if (r.error) return aviso('Erro ao salvar: ' + r.error.message, true);
+    var antigo = it.handle; it.handle = novo; editando = null;
+    aviso('Corrigido: @' + antigo + ' → @' + novo);
+    render();
+  }
+
+  $('lista').addEventListener('click', async function (ev) {
+    var b = ev.target.closest('button[data-a]'); if (!b) return;
+    var a = b.getAttribute('data-a'), id = Number(b.getAttribute('data-id'));
+    if (a === 'postado') { b.disabled = true; marcar(id, true); }
+    else if (a === 'desfazer') { marcar(id, false); }
+    else if (a === 'editar') { editando = id; render(); }
+    else if (a === 'cancelar') { editando = null; render(); }
+    else if (a === 'salvar') { salvarInsta(id); }
+    else if (a === 'copiar') {
+      var h = b.getAttribute('data-h');
+      try { await navigator.clipboard.writeText('@' + h); aviso('Copiado: @' + h); } catch (e) { aviso('Não deu para copiar. O @ é: @' + h, true); }
+    }
+  });
+  $('lista').addEventListener('keydown', function (ev) {
+    if (ev.target.id === 'edIn' && ev.key === 'Enter') { var b = ev.target.parentNode.querySelector('[data-a=salvar]'); if (b) b.click(); }
+  });
+  ['fSit', 'fTurma'].forEach(function (id) { $(id).addEventListener('change', render); });
+  $('busca').addEventListener('input', render);
+  $('quem').addEventListener('change', function () { lsSet('igQuem', this.value); });
+  $('atualizar').addEventListener('click', carregar);
+
+  if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('sw.js'); } catch (e) {} }
+  iniciar();
+})();
+</script>
+</body>
+</html>
