@@ -124,6 +124,24 @@
   #login h1{font-size:30px;margin-bottom:6px;}
   #login p{color:var(--ink-soft);margin:0 0 22px;font-size:15px;}
   .err-msg{color:var(--brick);font-size:14px;min-height:20px;margin:10px 0 0;}
+  /* teto do cartão */
+  .teto{margin-top:16px;}
+  .teto-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:6px;}
+  .teto-tit{font-family:Georgia,'Times New Roman',serif;font-weight:600;font-size:18px;}
+  .teto-sub{font-size:12px;color:var(--ink-soft);}
+  .teto-lbl{font-size:13px;color:var(--ink-soft);margin-top:4px;}
+  .teto-big{font-size:34px;font-weight:700;letter-spacing:-0.02em;line-height:1.1;margin:2px 0 12px;}
+  .teto-big.ok{color:var(--green);} .teto-big.atencao{color:var(--amber);} .teto-big.estourou{color:var(--brick);}
+  .barra{height:12px;border-radius:999px;background:var(--line-soft);overflow:hidden;}
+  .barra .fill{height:100%;border-radius:999px;transition:width .3s;}
+  .fill.ok{background:var(--green);} .fill.atencao{background:var(--amber);} .fill.estourou{background:var(--brick);}
+  .teto-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px;}
+  .teto-nums div{font-size:12px;color:var(--ink-soft);}
+  .teto-nums b{display:block;font-size:15px;color:var(--ink);font-weight:600;margin-top:2px;}
+  .teto-nota{margin-top:12px;font-size:13px;color:var(--ink-soft);}
+  .teto-aviso{margin-top:10px;font-size:13px;color:var(--brick);background:var(--brick-soft);border-radius:8px;padding:8px 10px;}
+  .hint{margin-top:12px;font-size:13px;border-radius:8px;padding:9px 11px;background:var(--line-soft);color:var(--ink-soft);}
+  .hint.entra{background:var(--green-soft);color:var(--green);font-weight:500;}
   [hidden]{display:none !important;}
 </style>
 </head>
@@ -153,6 +171,8 @@
   </header>
 
   <form id="form" class="wrap" autocomplete="off" novalidate>
+    <div class="card teto" id="teto" aria-live="polite"><div class="vazio">Calculando o teto…</div></div>
+
     <div class="seg" role="group" aria-label="Origem do gasto">
       <button type="button" id="seg-conta" aria-pressed="true">Conta</button>
       <button type="button" id="seg-cartao" aria-pressed="false">Cartão</button>
@@ -191,6 +211,7 @@
         <label for="data">Data</label>
         <input type="date" id="data">
       </div>
+      <div class="hint" id="hint-teto" hidden></div>
     </div>
 
     <div class="card">
@@ -286,7 +307,7 @@ async function iniciar(){
   $('data').value = hojeISO();
   const [c, k, cat, rec] = await Promise.all([
     sb.from('finan_contas').select('id,nome').order('nome'),
-    sb.from('finan_cartoes').select('id,nome').order('nome'),
+    sb.from('finan_cartoes').select('id,nome,dia_fechamento,dia_vencimento').order('nome'),
     sb.from('finan_categorias').select('id,nome').order('nome'),
     sb.from('finan_lancamentos').select('descricao,categoria_id').order('criado_em', { ascending:false }).limit(400),
   ]);
@@ -307,6 +328,7 @@ async function iniciar(){
   const salvo = store.get('lancar.tipo');
   setTipo(salvo === 'cartao' ? 'cartao' : 'conta');
   carregarHoje();
+  carregarTeto();
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, (m) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
@@ -321,15 +343,101 @@ function setTipo(t){
   if (ultimo && lista.some((x) => x.id === ultimo)) $('origem').value = ultimo;
   $('sw-pago-wrap').hidden = (t === 'cartao');
   atualizarPrev();
+  atualizarHint();
 }
 $('seg-conta').addEventListener('click', () => setTipo('conta'));
 $('seg-cartao').addEventListener('click', () => setTipo('cartao'));
-$('origem').addEventListener('change', () => store.set('lancar.origem.' + tipo, $('origem').value));
+$('origem').addEventListener('change', () => { store.set('lancar.origem.' + tipo, $('origem').value); atualizarHint(); });
+['data', 'valor', 'n-parc'].forEach((id) => $(id).addEventListener('input', atualizarHint));
+$('data').addEventListener('change', atualizarHint);
+$('parcelado').addEventListener('change', atualizarHint);
 
 function setSinal(s){
   sinal = s;
   $('sinal-gasto').setAttribute('aria-pressed', s < 0);
   $('sinal-receita').setAttribute('aria-pressed', s > 0);
+  atualizarHint();
+}
+
+/* ---------- teto do cartão (faturas que vencem no mês seguinte) ---------- */
+let teto = null;
+const alvoMes = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth() + 1, 1); };
+const isoDia = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+const nomeMes = (d) => d.toLocaleDateString('pt-BR', { month: 'long' });
+const ddmm = (iso) => String(iso).slice(8, 10) + '/' + String(iso).slice(5, 7);
+
+async function carregarTeto(){
+  const { data, error } = await sb.rpc('finan_teto_cartao', { p_mes: isoDia(alvoMes()) });
+  if (error || !data || !data[0]) {
+    teto = null;
+    $('teto').innerHTML = '<div class="vazio">Não consegui calcular o teto' + (error ? ': ' + esc(error.message) : '.') + '</div>';
+    return;
+  }
+  teto = data[0];
+  renderTeto(); atualizarHint();
+}
+
+function renderTeto(){
+  const t = teto, alvo = alvoMes(), mes = nomeMes(alvo);
+  const tt = Number(t.teto), cons = Number(t.consumo), rest = Number(t.restante);
+  const pode = Number(t.pode_hoje), porDia = Number(t.por_dia), dias = Number(t.dias_restantes);
+  const pct = tt > 0 ? Math.max(0, Math.min(100, cons / tt * 100)) : (cons > 0 ? 100 : 0);
+  const estado = rest < 0 ? 'estourou' : (pct >= 80 ? 'atencao' : 'ok');
+  let rotulo, big;
+  if (rest < 0) { rotulo = 'Teto estourado em'; big = brl(Math.abs(rest)); }
+  else if (dias === 0) { rotulo = 'Ciclo encerrado — sobraram'; big = brl(rest); }
+  else if (pode >= 0) { rotulo = 'Hoje ainda pode gastar'; big = brl(pode); }
+  else { rotulo = 'Hoje já passou do ritmo em'; big = brl(Math.abs(pode)); }
+  let nota = '';
+  if (dias > 0 && rest >= 0) nota = 'Ritmo: <strong>' + brl(porDia) + ' por dia</strong> até ' + ddmm(t.ciclo_fim) + ' (' + dias + (dias === 1 ? ' dia' : ' dias') + ').';
+  else if (dias > 0) nota = 'Para não aumentar o estouro, evite novas compras que vençam em ' + mes + '.';
+  $('teto').innerHTML =
+    '<div class="teto-head"><span class="teto-tit">Faturas de ' + esc(mes) + '</span><span class="teto-sub">teto do cartão · compras até ' + ddmm(t.ciclo_fim) + '</span></div>' +
+    '<div class="teto-lbl">' + rotulo + '</div>' +
+    '<div class="teto-big ' + estado + '">' + big + '</div>' +
+    '<div class="barra" role="img" aria-label="' + Math.round(pct) + '% do teto usado"><div class="fill ' + estado + '" style="width:' + pct.toFixed(1) + '%"></div></div>' +
+    '<div class="teto-nums"><div>Usado<b>' + brl(cons) + '</b></div><div>Teto<b>' + brl(tt) + '</b></div><div>Restam<b>' + brl(rest) + '</b></div></div>' +
+    (nota ? '<div class="teto-nota">' + nota + '</div>' : '') +
+    (Number(t.receitas) === 0 ? '<div class="teto-aviso">Nenhuma receita lançada em ' + esc(mes) + ': o teto pode estar incompleto.</div>' : '');
+}
+
+// Mesma regra da view finan_fatura_cartao: compra antes do fechamento cai na fatura do mês.
+function vencFatura(dataISO, c){
+  const [y, m, d] = dataISO.split('-').map(Number);
+  const base = d < c.dia_fechamento ? m : m + 1;
+  const mesVenc = c.dia_vencimento > c.dia_fechamento ? base : base + 1;
+  return new Date(y, mesVenc - 1, c.dia_vencimento);
+}
+
+function atualizarHint(){
+  const el = $('hint-teto');
+  el.hidden = true; el.className = 'hint';
+  if (!teto) return;
+  const data = $('data').value, origemId = $('origem').value;
+  if (!data || !origemId) return;
+  const alvo = alvoMes(), mes = nomeMes(alvo);
+  let entra, msg;
+  if (tipo === 'cartao') {
+    const c = cartoes.find((x) => x.id === origemId);
+    if (!c || !c.dia_fechamento || !c.dia_vencimento) return;
+    const venc = vencFatura(data, c);
+    entra = venc.getFullYear() === alvo.getFullYear() && venc.getMonth() === alvo.getMonth();
+    msg = 'Cai na fatura de ' + venc.toLocaleDateString('pt-BR') + (entra ? ' · usa o teto de ' + mes : ' · fora do teto de ' + mes);
+  } else {
+    const [y, m] = data.split('-').map(Number);
+    entra = y === alvo.getFullYear() && m - 1 === alvo.getMonth();
+    msg = entra ? (sinal > 0 ? 'Receita em ' + mes + ': aumenta o teto.' : 'Gasto em conta em ' + mes + ': reduz o teto.') : 'Data fora de ' + mes + ': não entra no teto.';
+  }
+  const v = Math.abs(parseValor($('valor').value));
+  if (entra && v > 0) {
+    let parcela = v;
+    const n = parseInt($('n-parc').value, 10);
+    if ($('parcelado').checked && n >= 2) parcela = Math.round(v / n * 100) / 100;
+    const depois = Number(teto.restante) + (sinal < 0 ? -parcela : parcela);
+    msg += ' · depois desta, restam ' + brl(depois);
+  }
+  el.textContent = msg; el.hidden = false;
+  if (entra) el.classList.add('entra');
 }
 $('sinal-gasto').addEventListener('click', () => setSinal(-1));
 $('sinal-receita').addEventListener('click', () => setSinal(1));
@@ -406,6 +514,7 @@ $('form').addEventListener('submit', async (e) => {
   $('data').value = hojeISO(); setSinal(-1);
   window.scrollTo({ top: 0, behavior: 'smooth' });
   carregarHoje();
+  carregarTeto();
 });
 
 /* ---------- lista de hoje ---------- */
