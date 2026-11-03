@@ -271,6 +271,15 @@
   }
 
   // ---------- texto do contrato (usado na tela e no PDF) ----------
+  // Caixa de título que respeita acentos (\w não pega Á, Ç etc.); mantém de/da/do/e em minúscula.
+  function tituloCaixa(s) {
+    var peq = { de: 1, da: 1, do: 1, das: 1, dos: 1, e: 1 };
+    return String(s || '').replace(/\p{L}+/gu, function (w, i) {
+      var l = w.toLowerCase();
+      if (i > 0 && peq[l]) return l;
+      return l.charAt(0).toUpperCase() + l.slice(1);
+    });
+  }
   function nomeCurso(t) {
     var c = String(t.curso || '').toUpperCase();
     var id = t.ident ? String(t.ident).trim() : '';
@@ -637,7 +646,7 @@
 
   function iniciar(t) {
     estado.turma = t;
-    $('tagFac').textContent = t.faculdade || ''; $('tagCurso').textContent = nomeCurso(t).replace(/\b(\w)(\w*)/g, function (m, a, b) { return a + b.toLowerCase(); });
+    $('tagFac').textContent = t.faculdade || ''; $('tagCurso').textContent = tituloCaixa(nomeCurso(t));
     $('tagSem').textContent = t.semestre || '';
     $('dataHoje').textContent = hojeExtenso();
     var tipos = [];
