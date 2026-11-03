@@ -333,11 +333,19 @@
     B.push({ k: 'p', t: 'A exploração dos serviços de fotografia e vídeo na formatura será de exclusividade da CONTRATADA, incluindo a comercialização de tais serviços.' });
     B.push({ k: 'p', t: '**Parágrafo Primeiro:** O CONTRATANTE autoriza, sem ônus, a veiculação de sua imagem nos eventos oficiais da formatura para fins de divulgação em anúncios publicitários da CONTRATADA.' });
     B.push({ k: 'h', t: 'CLÁUSULA NONA - DISPONIBILIZAÇÃO DE LINK DE FOTOS' });
-    B.push({ k: 'p', t: 'A disponibilização de link para acesso às fotos digitais da formatura está condicionada a uma das seguintes situações:' });
-    B.push({ k: 'p', ind: true, t: 'I - Caso esteja expressamente previsto no presente contrato individual;' });
-    B.push({ k: 'p', ind: true, t: 'II - Caso conste no Anexo 1 deste contrato;' });
-    B.push({ k: 'p', ind: true, t: 'III - Caso esteja contemplado em contrato individual específico para este fim.' });
-    B.push({ k: 'p', t: '**Parágrafo Único:** Em caso de contratação do link, o mesmo será disponibilizado pela CONTRATADA à comissão de formatura e permanecerá ativo por até 60 (sessenta) dias corridos, contados a partir do seu envio. Após esse prazo, o link será desativado. Para eventual reativação e novo envio, será cobrado o valor de R$ 40,00 (quarenta reais), mediante solicitação expressa do CONTRATANTE ou da comissão.' });
+    if (ctx.turma && ctx.turma.linkFotoIncluso) {
+      // Turmas em que o link de fotos já está incluso no valor do contrato (Anexo 1): texto próprio, sem contrato específico do link.
+      B.push({ k: 'p', t: 'O link para acesso às fotos digitais da formatura está **incluso** no valor do presente contrato, conforme o Anexo 1, não havendo cobrança adicional nem necessidade de contrato específico para este fim.' });
+      B.push({ k: 'p', t: '**Parágrafo Primeiro:** O link será disponibilizado pela CONTRATADA à comissão de formatura e permanecerá ativo por até 60 (sessenta) dias corridos, contados a partir do seu envio, cabendo ao CONTRATANTE realizar o download dos arquivos dentro desse período. Após esse prazo, o link será desativado.' });
+      B.push({ k: 'p', t: '**Parágrafo Segundo:** Para eventual reativação e novo envio, será cobrado o valor de R$ 40,00 (quarenta reais), mediante solicitação expressa do CONTRATANTE ou da comissão.' });
+      B.push({ k: 'p', t: '**Parágrafo Terceiro:** A disponibilização do link fica condicionada à adimplência do CONTRATANTE.' });
+    } else {
+      B.push({ k: 'p', t: 'A disponibilização de link para acesso às fotos digitais da formatura está condicionada a uma das seguintes situações:' });
+      B.push({ k: 'p', ind: true, t: 'I - Caso esteja expressamente previsto no presente contrato individual;' });
+      B.push({ k: 'p', ind: true, t: 'II - Caso conste no Anexo 1 deste contrato;' });
+      B.push({ k: 'p', ind: true, t: 'III - Caso esteja contemplado em contrato individual específico para este fim.' });
+      B.push({ k: 'p', t: '**Parágrafo Único:** Em caso de contratação do link, o mesmo será disponibilizado pela CONTRATADA à comissão de formatura e permanecerá ativo por até 60 (sessenta) dias corridos, contados a partir do seu envio. Após esse prazo, o link será desativado. Para eventual reativação e novo envio, será cobrado o valor de R$ 40,00 (quarenta reais), mediante solicitação expressa do CONTRATANTE ou da comissão.' });
+    }
     B.push({ k: 'h', t: 'CLÁUSULA DÉCIMA - FORO' });
     B.push({ k: 'p', t: 'As partes elegem o Foro da Comarca de Tubarão, Estado de Santa Catarina, para dirimir qualquer questão oriunda da interpretação do presente contrato, renunciando a qualquer outro foro, por mais privilegiado que seja.' });
     B.push({ k: 'p', t: 'Demais situações estão descritas no contrato assinado com a comissão de formatura.' });
