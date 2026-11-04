@@ -92,6 +92,7 @@
         <option value="sem">Só sem contato</option>
         <option value="semconv">Sem conversa registrada</option>
       </select>
+      <select id="fSem"><option value="">Formatura (semestre)</option></select>
       <select id="fTipo">
         <option value="">Turmas: todas</option>
         <option value="pros">Em prospecção</option>
@@ -258,6 +259,10 @@
     turmas.forEach(function (t) { cs[t.Condicao || '(sem condição)'] = 1; });
     var pr = Object.keys(ps).sort(function (a, b) { return predioOrdem(a) - predioOrdem(b) || a.localeCompare(b, 'pt-BR'); });
     $('fPredio').innerHTML = '<option value="">Prédio</option>' + pr.map(function (p) { return '<option>' + esc(p) + '</option>'; }).join('');
+    var ss = {}; turmas.forEach(function (t) { if (t.IdSemestre) ss[t.IdSemestre] = 1; });
+    var vs = $('fSem').value;
+    $('fSem').innerHTML = '<option value="">Formatura (semestre)</option>' + Object.keys(ss).sort(function (a, b) { return String(semestres[a] || '').localeCompare(String(semestres[b] || ''), 'pt-BR', { numeric: true }); }).map(function (k) { return '<option value="' + k + '">' + esc(semestres[k] || k) + '</option>'; }).join('');
+    $('fSem').value = vs;
     $('fTurno').innerHTML = '<option value="">Turno</option>' + Object.keys(ts).map(function (k) { return '<option value="' + k + '">' + esc(turnos[k] || k) + '</option>'; }).join('');
     $('chipsCond').innerHTML = Object.keys(cs).sort().map(function (c) {
       return '<button class="chip' + (condSel[c] ? ' on' : '') + '" data-c="' + esc(c) + '">' + esc(c) + '</button>';
@@ -269,10 +274,10 @@
     if (condSel[c]) delete condSel[c]; else condSel[c] = true;
     b.classList.toggle('on'); render();
   });
-  ['fPredio', 'fTurno', 'fContato', 'fTipo'].forEach(function (id) { $(id).addEventListener('change', render); });
+  ['fPredio', 'fTurno', 'fContato', 'fTipo', 'fSem'].forEach(function (id) { $(id).addEventListener('change', render); });
   $('busca').addEventListener('input', render);
   $('limpar').addEventListener('click', function () {
-    ['fPredio', 'fTurno', 'fContato', 'fTipo'].forEach(function (id) { $(id).value = ''; });
+    ['fPredio', 'fTurno', 'fContato', 'fTipo', 'fSem'].forEach(function (id) { $(id).value = ''; });
     $('busca').value = ''; condSel = {};
     Array.prototype.forEach.call(document.querySelectorAll('#chipsCond .chip'), function (c) { c.classList.remove('on'); });
     render();
@@ -282,6 +287,7 @@
   function passaTurma(t, q) {
     var cond = t.Condicao || '(sem condição)';
     if (Object.keys(condSel).length && !condSel[cond]) return false;
+    var fs = $('fSem').value; if (fs && String(t.IdSemestre) !== fs) return false;
     var tp = $('fTipo').value;
     if (tp === 'fech' && t.Condicao !== 'Imaginarium') return false;
     if (tp === 'pros' && t.Condicao === 'Imaginarium') return false;
