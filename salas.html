@@ -116,7 +116,13 @@
 
   var DIAS = [['Seg', 'segunda', 1], ['Ter', 'terça', 2], ['Qua', 'quarta', 3], ['Qui', 'quinta', 4], ['Sex', 'sexta', 5], ['Sáb', 'sábado', 6]];
   var aulas = [], turmas = [], cursos = {}, turnos = {};
-  var nForm = {}, nConv = {}, ultConv = {};
+  var PLACEHOLDERS = ['nao tem','ok','a','x','0','sem contato','verificar contato','??','?','-','sem',''];
+  function contatoReal(f) {
+    if (String(f.Whats || '').replace(/\D/g, '')) return true;
+    var n = norm([f.FormandoNome, f.FormandoSobrenome].filter(Boolean).join(' ').trim());
+    return PLACEHOLDERS.indexOf(n) < 0;
+  }
+  var nForm = {}, nConv = {}, ultConv = {}, semestres = {};
   var diaSel = 1, condSel = {};
 
   function $(id) { return document.getElementById(id); }
@@ -162,9 +168,10 @@
         pagina(function () { return db.from('FormSalaAula').select('IdCurso, IdTurno, Periodo, Rotulo, Codigo, DiaSemana, Tipo, Sala, Local, Obs, Conferir').eq('IdSemestre', SEM_AULA).order('Id'); }),
         pagina(function () { return db.from('FormTurma').select('idTurma, IdCurso, IdTurno, IdSemestre, Fase, Identificacao, Condicao, DataProximoContato').eq('IdFaculdade', FAC_UNIVINTE).order('idTurma'); }),
         mapa('FormCurso', 'idCurso', 'NomeCurso'),
-        mapa('FormTurno', 'idturno', 'NomeTurno')
+        mapa('FormTurno', 'idturno', 'NomeTurno'),
+        mapa('FormSemestre', 'idSemestre', 'NomeSemestre')
       ]);
-      aulas = res[0]; turmas = res[1]; cursos = res[2]; turnos = res[3];
+      aulas = res[0]; turmas = res[1]; cursos = res[2]; turnos = res[3]; semestres = res[4];
 
       // Só as turmas que têm cartaz neste semestre entram na contagem de contatos
       var usadas = {};
@@ -173,14 +180,14 @@
       nForm = {}; nConv = {}; ultConv = {};
       var formandos = [];
       for (var i = 0; i < ids.length; i += 100) {
-        var r = await db.from('FormFormando').select('idFormando, IdTurma, FormAtivo').in('IdTurma', ids.slice(i, i + 100));
+        var r = await db.from('FormFormando').select('idFormando, IdTurma, FormAtivo, Whats, FormandoNome, FormandoSobrenome').in('IdTurma', ids.slice(i, i + 100));
         if (r.error) throw r.error;
         formandos = formandos.concat(r.data || []);
       }
       var turmaDoFormando = {}, idsF = [];
       formandos.forEach(function (f) {
         if (f.FormAtivo === false) return;
-        nForm[f.IdTurma] = (nForm[f.IdTurma] || 0) + 1;
+        if (contatoReal(f)) nForm[f.IdTurma] = (nForm[f.IdTurma] || 0) + 1;
         turmaDoFormando[f.idFormando] = f.IdTurma; idsF.push(f.idFormando);
       });
       for (var j = 0; j < idsF.length; j += 150) {
@@ -288,13 +295,13 @@
     var nome = (cursos[t.IdCurso] || '—') + ' · ' + a.Periodo + 'º';
     var rot = a.Rotulo ? ' · ' + a.Rotulo : '';
     var info;
-    if (!nf) info = '<span class="sem">SEM CONTATO</span>';
+    if (!nf) info = '<span class="sem">SEM CONTATO</span>' + (nc ? ' · ' + nc + ' anotação(ões), última ' + fmtData(ultConv[t.idTurma]) : '');
     else info = nf + ' contato(s)' + (nc ? ' · ' + nc + ' conversa(s), última ' + fmtData(ultConv[t.idTurma]) : ' · <span class="sem">sem conversa</span>');
     if (t.DataProximoContato) info += ' · retorno ' + fmtData(t.DataProximoContato);
     var ab = x.indef ? '<span class="ab">A ou B? defina a letra</span>' : '';
     return '<div class="ent' + (!nf ? ' semcontato' : '') + '" data-id="' + t.idTurma + '">' +
       '<div class="linha"><div><div class="t1">' + esc(nome + rot) + ab + '</div>' +
-      '<div class="t2">' + esc(turnos[t.IdTurno] || '') + ' · ' + info + '</div></div>' +
+      '<div class="t2">' + esc(turnos[t.IdTurno] || '') + ' · formatura ' + esc(semestres[t.IdSemestre] || '—') + ' · ' + info + '</div></div>' +
       '<span class="badge ' + badgeClasse(t.Condicao) + '">' + esc(t.Condicao || 'sem condição') + '</span></div>' +
       (a.Obs ? '<div class="obs">' + esc(a.Obs) + '</div>' : '') + '</div>';
   }
