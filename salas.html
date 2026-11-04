@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Salas</title>
+<meta name="theme-color" content="#2f6b4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Salas">
+<link rel="apple-touch-icon" href="apple-touch-contatos.png">
+<link rel="icon" type="image/png" href="contatos-192.png">
+<style>
+  :root { --bg:#f6f5f2; --panel:#fff; --ink:#1f2a24; --muted:#6b7570; --line:#dfe0da; --accent:#2f6b4f; --accent-dark:#234f3a; --soft:#e8f1ec; --warn:#a4442d; --warnbg:#f7e6e1; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; padding:0; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); min-height:100dvh; font-size:16px; }
+  button, input, select { font:inherit; color:inherit; }
+  .wrap { max-width:640px; margin:0 auto; padding:max(10px,env(safe-area-inset-top)) 12px max(28px,env(safe-area-inset-bottom)); }
+  h1 { font-size:1.25rem; margin:6px 0 2px; }
+  .sub { color:var(--muted); font-size:.85rem; margin-bottom:8px; }
+  .top { position:sticky; top:0; z-index:5; background:var(--bg); padding-bottom:8px; }
+  .topo { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .link { background:none; border:0; color:var(--accent); font-weight:700; padding:6px 2px; cursor:pointer; text-decoration:none; font-size:.95rem; white-space:nowrap; }
+  input[type=search], select { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; font-size:16px; }
+  .dias { display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin:6px 0 8px; }
+  .dia { border:1px solid var(--line); background:#fff; border-radius:10px; padding:9px 0; text-align:center; font-weight:700; cursor:pointer; font-size:.95rem; }
+  .dia small { display:block; font-weight:500; color:var(--muted); font-size:.68rem; }
+  .dia.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .dia.on small { color:#d6e8de; }
+  .dia.hoje:not(.on) { border-color:var(--accent); }
+  .filtros { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .chip { border:1px solid var(--line); background:#fff; border-radius:999px; padding:6px 11px; font-size:.85rem; cursor:pointer; }
+  .chip.on { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .barra { display:flex; justify-content:space-between; align-items:center; margin:10px 2px 6px; font-size:.85rem; color:var(--muted); gap:8px; flex-wrap:wrap; }
+  .predio { margin:14px 2px 6px; font-weight:800; font-size:.8rem; letter-spacing:.04em; text-transform:uppercase; color:var(--accent-dark); }
+  .sala { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-bottom:10px; }
+  .sala-h { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+  .sala-n { font-weight:800; font-size:1.05rem; }
+  .sala-l { color:var(--muted); font-size:.8rem; }
+  .ent { border-top:1px solid var(--line); margin-top:8px; padding-top:8px; cursor:pointer; }
+  .ent:first-of-type { border-top:0; margin-top:6px; padding-top:0; }
+  .ent:active { background:var(--soft); }
+  .linha { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; }
+  .t1 { font-weight:700; font-size:.95rem; }
+  .t2 { color:var(--muted); font-size:.84rem; margin-top:2px; }
+  .sem { color:var(--warn); font-weight:700; }
+  .ent.semcontato { background:var(--warnbg); border-radius:8px; padding:8px; margin-left:-4px; margin-right:-4px; }
+  .obs { font-size:.78rem; color:var(--muted); margin-top:2px; font-style:italic; }
+  .badge { display:inline-block; font-size:.72rem; font-weight:700; padding:2px 9px; border-radius:999px; background:#eceae4; color:#444; white-space:nowrap; }
+  .b-Imaginarium { background:var(--accent); color:#fff; }
+  .b-Negociação, .b-Aguardando { background:#f3e3b8; color:#6b4a00; }
+  .b-Pegar { background:#d9e8f7; color:#1d4a75; }
+  .ab { display:inline-block; font-size:.7rem; font-weight:700; padding:1px 7px; border-radius:6px; background:#fff3cd; color:#7a5a00; margin-left:4px; }
+  .vazio { text-align:center; color:var(--muted); padding:26px 8px; }
+  details { margin-top:14px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px 12px; }
+  summary { font-weight:700; cursor:pointer; }
+  .aviso { font-size:.75rem; color:var(--muted); margin-top:14px; text-align:center; }
+  #pin { position:fixed; inset:0; background:var(--bg); z-index:50; display:none; align-items:center; justify-content:center; padding:20px; }
+  #pin.on { display:flex; }
+  #pin .box { background:#fff; border:1px solid var(--line); border-radius:16px; padding:24px 20px; width:100%; max-width:320px; text-align:center; }
+  #pinIn { text-align:center; letter-spacing:.5em; font-size:1.6rem; }
+  .msg { font-size:.85rem; color:var(--warn); min-height:1em; }
+  .oculto { display:none !important; }
+</style>
+</head>
+<body>
+
+<div id="pin">
+  <div class="box">
+    <h1>Salas</h1>
+    <p style="color:var(--muted);margin:0 0 14px">Digite o PIN</p>
+    <input id="pinIn" type="tel" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="••••">
+    <div id="pinMsg" class="msg" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app">
+  <div class="top">
+    <div class="topo">
+      <div><h1>Salas · Univinte</h1><div class="sub" id="subt">Semestre 2026/2 · salas sujeitas a alteração</div></div>
+      <a class="link" href="contatos.html">Contatos ›</a>
+    </div>
+    <div class="dias" id="dias"></div>
+    <input id="busca" type="search" placeholder="Buscar curso, sala ou código...">
+    <div class="filtros">
+      <select id="fPredio"><option value="">Prédio</option></select>
+      <select id="fTurno"><option value="">Turno</option></select>
+      <select id="fContato">
+        <option value="">Contato: todos</option>
+        <option value="sem">Só sem contato</option>
+        <option value="semconv">Sem conversa registrada</option>
+      </select>
+      <select id="fTipo">
+        <option value="">Turmas: todas</option>
+        <option value="pros">Em prospecção</option>
+        <option value="fech">Fechadas (Imaginarium)</option>
+      </select>
+    </div>
+    <div class="chips" id="chipsCond"></div>
+  </div>
+  <div class="barra"><span id="resumo">Carregando...</span><button class="link" id="limpar">Limpar filtros</button></div>
+  <div id="lista"></div>
+  <div class="aviso" id="aviso"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+(function () {
+  var SUPABASE_URL = 'https://gqgxekjcmnostlxgfvlg.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_UBuz0ZvBKbFmGR9JCNCwEw_nlo4xIDc';
+  var PIN = '1085';
+  var FAC_UNIVINTE = 4, SEM_AULA = 1;
+  var db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  var DIAS = [['Seg', 'segunda', 1], ['Ter', 'terça', 2], ['Qua', 'quarta', 3], ['Qui', 'quinta', 4], ['Sex', 'sexta', 5], ['Sáb', 'sábado', 6]];
+  var aulas = [], turmas = [], cursos = {}, turnos = {};
+  var nForm = {}, nConv = {}, ultConv = {};
+  var diaSel = 1, condSel = {};
+
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+  function fmtData(s) { if (!s) return ''; var p = String(s).slice(0, 10).split('-'); return p.length === 3 ? p[2] + '/' + p[1] + '/' + p[0] : s; }
+  function badgeClasse(c) { return 'b-' + String(c || '').split(' ')[0]; }
+
+  /* ---------- PIN (o mesmo da página Contatos) ---------- */
+  function iniciar() {
+    if (lsGet('ctPinOk') === '1') { $('pin').classList.remove('on'); carregar(); return; }
+    $('pin').classList.add('on'); $('app').classList.add('oculto'); $('pinIn').focus();
+  }
+  $('pinIn').addEventListener('input', function () {
+    var v = this.value.replace(/\D/g, ''); this.value = v;
+    if (v.length === 4) {
+      if (v === PIN) { lsSet('ctPinOk', '1'); $('pin').classList.remove('on'); $('app').classList.remove('oculto'); carregar(); }
+      else { $('pinMsg').textContent = 'PIN incorreto.'; this.value = ''; }
+    } else { $('pinMsg').textContent = ''; }
+  });
+
+  /* ---------- Carga ---------- */
+  async function pagina(montar) {
+    var tudo = [], passo = 1000;
+    for (var ini = 0; ; ini += passo) {
+      var r = await montar().range(ini, ini + passo - 1);
+      if (r.error) throw r.error;
+      tudo = tudo.concat(r.data || []);
+      if (!r.data || r.data.length < passo) break;
+    }
+    return tudo;
+  }
+  async function mapa(tab, id, nome) {
+    var r = await db.from(tab).select(id + ', ' + nome);
+    var m = {}; (r.data || []).forEach(function (x) { m[x[id]] = x[nome]; }); return m;
+  }
+  async function carregar() {
+    $('resumo').textContent = 'Carregando...';
+    try {
+      var res = await Promise.all([
+        pagina(function () { return db.from('FormSalaAula').select('IdCurso, IdTurno, Periodo, Rotulo, Codigo, DiaSemana, Tipo, Sala, Local, Obs, Conferir').eq('IdSemestre', SEM_AULA).order('Id'); }),
+        pagina(function () { return db.from('FormTurma').select('idTurma, IdCurso, IdTurno, IdSemestre, Fase, Identificacao, Condicao, DataProximoContato').eq('IdFaculdade', FAC_UNIVINTE).order('idTurma'); }),
+        mapa('FormCurso', 'idCurso', 'NomeCurso'),
+        mapa('FormTurno', 'idturno', 'NomeTurno')
+      ]);
+      aulas = res[0]; turmas = res[1]; cursos = res[2]; turnos = res[3];
+
+      // Só as turmas que têm cartaz neste semestre entram na contagem de contatos
+      var usadas = {};
+      aulas.forEach(function (a) { usadas[a.IdCurso + '|' + a.IdTurno + '|' + a.Periodo] = 1; });
+      var ids = turmas.filter(function (t) { return usadas[t.IdCurso + '|' + t.IdTurno + '|' + t.Fase]; }).map(function (t) { return t.idTurma; });
+      nForm = {}; nConv = {}; ultConv = {};
+      var formandos = [];
+      for (var i = 0; i < ids.length; i += 100) {
+        var r = await db.from('FormFormando').select('idFormando, IdTurma, FormAtivo').in('IdTurma', ids.slice(i, i + 100));
+        if (r.error) throw r.error;
+        formandos = formandos.concat(r.data || []);
+      }
+      var turmaDoFormando = {}, idsF = [];
+      formandos.forEach(function (f) {
+        if (f.FormAtivo === false) return;
+        nForm[f.IdTurma] = (nForm[f.IdTurma] || 0) + 1;
+        turmaDoFormando[f.idFormando] = f.IdTurma; idsF.push(f.idFormando);
+      });
+      for (var j = 0; j < idsF.length; j += 150) {
+        var h = await db.from('FormFormandoHistoricoContato').select('IdFormando, DataOriginalPlanilha, DataRegistro').in('IdFormando', idsF.slice(j, j + 150));
+        if (h.error) throw h.error;
+        (h.data || []).forEach(function (x) {
+          var t = turmaDoFormando[x.IdFormando]; if (!t) return;
+          nConv[t] = (nConv[t] || 0) + 1;
+          var d = x.DataOriginalPlanilha || String(x.DataRegistro || '').slice(0, 10);
+          if (!ultConv[t] || String(d) > ultConv[t]) ultConv[t] = String(d);
+        });
+      }
+      montarFiltros(); montarDias(); render();
+    } catch (e) {
+      $('resumo').textContent = 'Erro ao carregar: ' + (e.message || e);
+    }
+  }
+
+  /* ---------- Ligação cartaz -> turma ---------- */
+  function letraTurma(t) {
+    var s = String(t.Identificacao || '').trim().toUpperCase().replace(/^TURMA\s+/, '');
+    return s;
+  }
+  function turmasDaLinha(a) {
+    var out = [];
+    turmas.forEach(function (t) {
+      if (t.IdCurso !== a.IdCurso || t.IdTurno !== a.IdTurno || t.Fase !== a.Periodo) return;
+      var ab = (a.Rotulo === 'A' || a.Rotulo === 'B');
+      if (ab) {
+        var l = letraTurma(t);
+        if (l && l !== a.Rotulo) return;
+        out.push({ t: t, indef: !l });
+      } else out.push({ t: t, indef: false });
+    });
+    return out;
+  }
+
+  /* ---------- Local: prédio e andar ---------- */
+  var ORDEM_PREDIO = ['Sede', 'Anexo A', 'Anexo B', 'Anexo E', 'Anexo F'];
+  function predioDe(loc) {
+    var p = String(loc || '').split(' / ')[0];
+    var m = p.split('–'); var nome = (m[m.length - 1] || '').trim();
+    return nome || 'Local não informado';
+  }
+  function andarDe(loc) {
+    var p = String(loc || '').split(' / ')[0];
+    var m = p.split('–'); return m.length > 1 ? m[0].trim() : '';
+  }
+  function andarOrdem(a) { return a === 'Térreo' ? 0 : (a ? parseInt(a, 10) || 9 : 9); }
+  function predioOrdem(p) { var i = ORDEM_PREDIO.indexOf(p); return i < 0 ? 99 : i; }
+
+  /* ---------- Dias e filtros ---------- */
+  function diaHoje() { var d = new Date().getDay(); return d === 0 ? 1 : d; }
+  function montarDias() {
+    var h = diaHoje(), real = new Date().getDay();
+    if (!diaSel || diaSel === 1 && !$('dias').innerHTML) diaSel = h;
+    $('dias').innerHTML = DIAS.map(function (d) {
+      return '<button class="dia' + (d[2] === diaSel ? ' on' : '') + (d[2] === real ? ' hoje' : '') + '" data-d="' + d[2] + '">' + d[0] + (d[2] === real ? '<small>hoje</small>' : '<small>&nbsp;</small>') + '</button>';
+    }).join('');
+  }
+  $('dias').addEventListener('click', function (e) {
+    var b = e.target.closest('.dia'); if (!b) return;
+    diaSel = Number(b.getAttribute('data-d')); montarDias(); render();
+  });
+  function montarFiltros() {
+    var ps = {}, ts = {}, cs = {};
+    aulas.forEach(function (a) { if (a.Tipo === 'sala') ps[predioDe(a.Local)] = 1; ts[a.IdTurno] = 1; });
+    turmas.forEach(function (t) { cs[t.Condicao || '(sem condição)'] = 1; });
+    var pr = Object.keys(ps).sort(function (a, b) { return predioOrdem(a) - predioOrdem(b) || a.localeCompare(b, 'pt-BR'); });
+    $('fPredio').innerHTML = '<option value="">Prédio</option>' + pr.map(function (p) { return '<option>' + esc(p) + '</option>'; }).join('');
+    $('fTurno').innerHTML = '<option value="">Turno</option>' + Object.keys(ts).map(function (k) { return '<option value="' + k + '">' + esc(turnos[k] || k) + '</option>'; }).join('');
+    $('chipsCond').innerHTML = Object.keys(cs).sort().map(function (c) {
+      return '<button class="chip' + (condSel[c] ? ' on' : '') + '" data-c="' + esc(c) + '">' + esc(c) + '</button>';
+    }).join('');
+  }
+  $('chipsCond').addEventListener('click', function (e) {
+    var b = e.target.closest('.chip'); if (!b) return;
+    var c = b.getAttribute('data-c');
+    if (condSel[c]) delete condSel[c]; else condSel[c] = true;
+    b.classList.toggle('on'); render();
+  });
+  ['fPredio', 'fTurno', 'fContato', 'fTipo'].forEach(function (id) { $(id).addEventListener('change', render); });
+  $('busca').addEventListener('input', render);
+  $('limpar').addEventListener('click', function () {
+    ['fPredio', 'fTurno', 'fContato', 'fTipo'].forEach(function (id) { $(id).value = ''; });
+    $('busca').value = ''; condSel = {};
+    Array.prototype.forEach.call(document.querySelectorAll('#chipsCond .chip'), function (c) { c.classList.remove('on'); });
+    render();
+  });
+
+  /* ---------- Render ---------- */
+  function passaTurma(t, q) {
+    var cond = t.Condicao || '(sem condição)';
+    if (Object.keys(condSel).length && !condSel[cond]) return false;
+    var tp = $('fTipo').value;
+    if (tp === 'fech' && t.Condicao !== 'Imaginarium') return false;
+    if (tp === 'pros' && t.Condicao === 'Imaginarium') return false;
+    var c = $('fContato').value, nf = nForm[t.idTurma] || 0, nc = nConv[t.idTurma] || 0;
+    if (c === 'sem' && nf > 0) return false;
+    if (c === 'semconv' && nc > 0) return false;
+    return true;
+  }
+  function linhaTurma(x, a) {
+    var t = x.t, nf = nForm[t.idTurma] || 0, nc = nConv[t.idTurma] || 0;
+    var nome = (cursos[t.IdCurso] || '—') + ' · ' + a.Periodo + 'º';
+    var rot = a.Rotulo ? ' · ' + a.Rotulo : '';
+    var info;
+    if (!nf) info = '<span class="sem">SEM CONTATO</span>';
+    else info = nf + ' contato(s)' + (nc ? ' · ' + nc + ' conversa(s), última ' + fmtData(ultConv[t.idTurma]) : ' · <span class="sem">sem conversa</span>');
+    if (t.DataProximoContato) info += ' · retorno ' + fmtData(t.DataProximoContato);
+    var ab = x.indef ? '<span class="ab">A ou B? defina a letra</span>' : '';
+    return '<div class="ent' + (!nf ? ' semcontato' : '') + '" data-id="' + t.idTurma + '">' +
+      '<div class="linha"><div><div class="t1">' + esc(nome + rot) + ab + '</div>' +
+      '<div class="t2">' + esc(turnos[t.IdTurno] || '') + ' · ' + info + '</div></div>' +
+      '<span class="badge ' + badgeClasse(t.Condicao) + '">' + esc(t.Condicao || 'sem condição') + '</span></div>' +
+      (a.Obs ? '<div class="obs">' + esc(a.Obs) + '</div>' : '') + '</div>';
+  }
+  function render() {
+    var pf = $('fPredio').value, tf = $('fTurno').value, q = norm($('busca').value.trim());
+    var salas = {}, semSala = [], contSala = 0, contTurma = {}, contSem = {};
+    aulas.forEach(function (a) {
+      if (a.DiaSemana !== diaSel) return;
+      if (tf && String(a.IdTurno) !== tf) return;
+      var tx = turmasDaLinha(a).filter(function (x) { return passaTurma(x.t); });
+      if (!tx.length) return;
+      if (q) {
+        var alvo = norm((cursos[a.IdCurso] || '') + ' ' + a.Sala + ' ' + a.Codigo + ' ' + a.Local);
+        if (!q.split(/\s+/).every(function (p) { return alvo.indexOf(p) >= 0; })) return;
+      }
+      if (a.Tipo === 'sala') {
+        var pr = predioDe(a.Local); if (pf && pr !== pf) return;
+        var k = a.Local + '|' + a.Sala;
+        var s = salas[k] = salas[k] || { sala: a.Sala, local: a.Local, predio: pr, andar: andarDe(a.Local), itens: [] };
+        tx.forEach(function (x) { s.itens.push({ x: x, a: a }); contTurma[x.t.idTurma] = 1; if (!(nForm[x.t.idTurma] || 0)) contSem[x.t.idTurma] = 1; });
+      } else if (!pf) {
+        tx.forEach(function (x) { semSala.push({ x: x, a: a }); });
+      }
+    });
+    var lista = Object.keys(salas).map(function (k) { return salas[k]; });
+    lista.sort(function (p, r) {
+      return predioOrdem(p.predio) - predioOrdem(r.predio) || p.predio.localeCompare(r.predio, 'pt-BR') ||
+        andarOrdem(p.andar) - andarOrdem(r.andar) ||
+        String(p.sala).localeCompare(String(r.sala), 'pt-BR', { numeric: true });
+    });
+    var dnome = DIAS.filter(function (d) { return d[2] === diaSel; })[0][1];
+    $('resumo').textContent = lista.length + ' sala(s) · ' + Object.keys(contTurma).length + ' turma(s) · ' + Object.keys(contSem).length + ' sem contato (' + dnome + ')';
+    if (!lista.length && !semSala.length) { $('lista').innerHTML = '<div class="vazio">Nenhuma sala com esses filtros neste dia.</div>'; $('aviso').textContent = ''; return; }
+    var html = '', ultPred = null;
+    lista.forEach(function (s) {
+      var cab = s.predio + (s.andar ? ' · ' + s.andar : '');
+      if (cab !== ultPred) { html += '<div class="predio">' + esc(cab) + '</div>'; ultPred = cab; }
+      html += '<div class="sala"><div class="sala-h"><span class="sala-n">Sala ' + esc(s.sala) + '</span><span class="sala-l">' + esc(s.local) + '</span></div>' +
+        s.itens.map(function (i) { return linhaTurma(i.x, i.a); }).join('') + '</div>';
+    });
+    if (semSala.length) {
+      html += '<details><summary>Sem sala fixa neste dia (' + semSala.length + ')</summary>' +
+        semSala.map(function (i) { return linhaTurma(i.x, i.a); }).join('') + '</details>';
+    }
+    $('lista').innerHTML = html;
+    $('aviso').textContent = 'Salas conforme cartaz 2026/2 (sujeito a alteração). Turmas sem cartaz neste semestre não aparecem aqui.';
+  }
+  $('lista').addEventListener('click', function (e) {
+    var c = e.target.closest('.ent'); if (!c) return;
+    location.href = 'contatos.html#t=' + c.getAttribute('data-id');
+  });
+
+  iniciar();
+})();
+</script>
+</body>
+</html>

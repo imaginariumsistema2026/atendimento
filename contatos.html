@@ -83,7 +83,7 @@
 
 <div class="wrap" id="app">
   <div class="top">
-    <h1>Contatos das turmas</h1>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h1>Contatos das turmas</h1><a href="salas.html" style="color:var(--accent);font-weight:700;text-decoration:none;font-size:.95rem">Salas ›</a></div>
     <input id="busca" type="search" placeholder="Buscar turma, contato ou Whats...">
     <div class="filtros">
       <select id="fFac"><option value="">Faculdade</option></select>
@@ -225,6 +225,8 @@
       });
       montarFiltros();
       render();
+      var hm = /^#t=(\d+)$/.exec(location.hash || '');
+      if (hm && turmaPorId(Number(hm[1]))) abrirTurma(Number(hm[1]));
     } catch (e) {
       $('resumo').textContent = 'Erro ao carregar: ' + (e.message || e);
     }
@@ -271,11 +273,25 @@
   });
 
   function ativosDe(idTurma) { return (contatosPorTurma[idTurma] || []).filter(function (f) { return f.FormAtivo !== false; }); }
+  /* Distância (em dias) entre a data da conversa e hoje: usada para mostrar em cima a mais próxima. */
+  function distHoje(h) {
+    if (!h) return Infinity;
+    var d = h.DataOriginalPlanilha || String(h.DataRegistro || '').slice(0, 10);
+    var t = Date.parse(d + 'T12:00:00'), z = Date.parse(hoje() + 'T12:00:00');
+    return isNaN(t) ? Infinity : Math.abs(t - z);
+  }
+  function maisProxima(a, b) {
+    if (!a) return b ? 1 : 0;
+    if (!b) return -1;
+    var da = distHoje(a), db = distHoje(b);
+    if (da !== db) return da - db;
+    return (b.idHistorico || 0) - (a.idHistorico || 0);
+  }
   function ultimaConversa(idTurma) {
     var melhor = null, quem = null;
     (contatosPorTurma[idTurma] || []).forEach(function (f) {
       var h = (histPorContato[f.idFormando] || [])[0]; if (!h) return;
-      if (!melhor || cmpHist(h, melhor) < 0) { melhor = h; quem = f; }
+      if (!melhor || maisProxima(h, melhor) < 0) { melhor = h; quem = f; }
     });
     return melhor ? { h: melhor, f: quem } : null;
   }
@@ -358,7 +374,8 @@
       (inativos ? '<button class="btn sec peq" id="inatBtn">' + (verInativos ? 'Ocultar' : 'Ver') + ' inativos (' + inativos + ')</button>' : '') + '</div>' +
       '<div class="form" style="margin-top:8px"><label style="font-size:.85rem;color:var(--muted);font-weight:600">Data de retorno' + (t.prox ? ' (atual: ' + fmtData(t.prox) + ')' : ' (não definida)') + '</label>' +
       '<div class="row"><input type="date" id="retData" value="' + esc(t.prox ? String(t.prox).slice(0, 10) : '') + '"><button class="btn peq" id="retSalvar" style="flex:0 0 auto">Salvar</button>' +
-      (t.prox ? '<button class="btn sec peq" id="retLimpar" style="flex:0 0 auto">Limpar</button>' : '') + '</div></div>' +
+      (t.prox ? '<button class="btn sec peq" id="retLimpar" style="flex:0 0 auto">Limpar</button>' : '') + '</div>' +
+      '<div class="row" style="margin-top:6px"><input type="number" id="retDias" inputmode="numeric" min="1" max="365" placeholder="dias" style="max-width:90px"><button class="btn peq" id="retAdiar" style="flex:1 1 auto">Adiar retorno (+ dias)</button></div></div>' +
       '<div class="msg' + (erro ? ' erro' : '') + '" id="dmsg" style="margin-top:6px">' + esc(msg || '') + '</div></div>';
 
     h += '<div id="novoForm" class="form oculto">' +
@@ -371,6 +388,9 @@
     if (verHistTurma) h += blocoHistTurma(t, todos);
 
     if (!lista.length) h += '<div class="vazio">Nenhum contato lançado nesta turma ainda.</div>';
+    lista = lista.slice().sort(function (a, b) {
+      return maisProxima((histPorContato[a.idFormando] || [])[0], (histPorContato[b.idFormando] || [])[0]) || 0;
+    });
     h += lista.map(function (f) { return cardContato(f); }).join('');
     $('detConteudo').innerHTML = h;
   }
@@ -442,6 +462,18 @@
     if (id === 'histTurmaBtn') { verHistTurma = !verHistTurma; return renderDetalhe(); }
     if (id === 'inatBtn') { verInativos = !verInativos; return renderDetalhe(); }
     if (id === 'nSalvar') return salvarNovo(e.target);
+    if (id === 'retAdiar') {
+      var dias = parseInt($('retDias').value, 10);
+      if (!(dias >= 1 && dias <= 365)) return msg('Informe quantos dias adiar (1 a 365).', true);
+      var base = String($('retData').value || '').slice(0, 10), h0 = hoje();
+      if (!base || base < h0) base = h0;
+      var dd = new Date(base + 'T12:00:00'); dd.setDate(dd.getDate() + dias);
+      var nv = dd.getFullYear() + '-' + String(dd.getMonth() + 1).padStart(2, '0') + '-' + String(dd.getDate()).padStart(2, '0');
+      var ra = await db.from('FormTurma').update({ DataProximoContato: nv }).eq('idTurma', turmaAberta);
+      if (ra.error) return msg('Erro ao adiar: ' + ra.error.message, true);
+      turmaPorId(turmaAberta).prox = nv;
+      return renderDetalhe('Retorno adiado ' + dias + ' dia(s): ' + fmtData(nv) + '.');
+    }
     if (id === 'retSalvar' || id === 'retLimpar') {
       var nova = id === 'retLimpar' ? null : ($('retData').value || null);
       var rr = await db.from('FormTurma').update({ DataProximoContato: nova }).eq('idTurma', turmaAberta);
