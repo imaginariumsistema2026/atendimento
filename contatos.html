@@ -83,7 +83,7 @@
 
 <div class="wrap" id="app">
   <div class="top">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h1>Contatos das turmas</h1><a href="salas.html" style="color:var(--accent);font-weight:700;text-decoration:none;font-size:.95rem">Salas ›</a></div>
+    <h1>Contatos das turmas</h1>
     <input id="busca" type="search" placeholder="Buscar turma, contato ou Whats...">
     <div class="filtros">
       <select id="fFac"><option value="">Faculdade</option></select>
@@ -225,8 +225,6 @@
       });
       montarFiltros();
       render();
-      var hm = /^#t=(\d+)$/.exec(location.hash || '');
-      if (hm && turmaPorId(Number(hm[1]))) abrirTurma(Number(hm[1]));
     } catch (e) {
       $('resumo').textContent = 'Erro ao carregar: ' + (e.message || e);
     }
