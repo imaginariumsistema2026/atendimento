@@ -607,7 +607,7 @@
     var t = estado.turma || {};
     var nome = ($('fNome').value || '').trim();
     var txt = 'Olá! Segue meu contrato individual assinado' + (estado.foto ? ' e meu contrato do link de fotos assinado' : '') + '.\nInstituição: ' + (t.faculdade || '') + '\nCurso: ' + (t.curso || '') + '\nSemestre: ' + (t.semestre || '') + '\nNome: ' + nome;
-    $('btnZap').href = 'https://wa.me/5548999755928?text=' + encodeURIComponent(txt);
+    $('btnZap').href = 'https://wa.me/' + (t.formando ? '5548996453000' : '5548999755928') + '?text=' + encodeURIComponent(txt);
   }
 
   function rotuloGerar() { return estado.foto ? 'Gerar contratos em PDF' : 'Gerar contrato em PDF'; }
@@ -656,6 +656,10 @@
     estado.turma = t;
     $('tagFac').textContent = t.faculdade || ''; $('tagCurso').textContent = tituloCaixa(nomeCurso(t));
     $('tagSem').textContent = t.semestre || '';
+    if (t.formando) {
+      if (t.formando.nome && !$('fNome').value) $('fNome').value = tituloCaixa(t.formando.nome);
+      if (t.formando.celular && !$('fCelular').value) $('fCelular').value = mCel(soDigitos(t.formando.celular).replace(/^55(?=\d{10,11}$)/, ''));
+    }
     $('dataHoje').textContent = hojeExtenso();
     var tipos = [];
     if (t.valorCompleta != null) tipos.push({ k: 'completa', n: 'Formatura Completa', v: t.valorCompleta });
