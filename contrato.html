@@ -311,11 +311,15 @@
     B.push({ k: 'h', t: 'CLÁUSULA PRIMEIRA - OBJETO' });
     B.push({ k: 'p', t: 'O presente contrato tem como objeto a arrecadação de fundos para a contratação dos ' + objeto + ' na formatura em questão, do qual o CONTRATANTE é parte integrante, adquirindo, por este contrato, sua quota parte.' });
     B.push({ k: 'h', t: 'CLÁUSULA SEGUNDA - VALOR E PAGAMENTO' });
-    B.push({ k: 'p', t: 'O CONTRATANTE se compromete a pagar sua quota parte no valor de **' + valorTxt + '**, conforme previsto no orçamento (anexo 1) em posse da comissão de formatura.' });
+    B.push({ k: 'p', t: 'O CONTRATANTE se compromete a pagar sua quota parte no valor de **' + valorTxt + '**' + ((ctx.turma && ctx.turma.linkFotoIncluso) ? ', valor que já inclui a disponibilização do link de fotos digitais da formatura,' : ',') + ' conforme previsto no orçamento (anexo 1) em posse da comissão de formatura.' });
     B.push({ k: 'p', t: '**Parágrafo Primeiro:** O pagamento deverá ser efetuado **mensalmente**, sendo que a última parcela deve ser paga até **30 (trinta) dias antes da data da colação de grau**.' });
     B.push({ k: 'p', t: '**Parágrafo Segundo:** O pagamento deve ser realizado via PIX para a empresa **Imaginarium Org. Festa e Eventos** (Unicred - Banco 136 / Agência 1409 / Conta 465105-7 / CNPJ: 48.033.407/0001-41).' });
     B.push({ k: 'p', t: '**Parágrafo Terceiro:** O comprovante de pagamento deverá ser enviado via WhatsApp para o setor financeiro no número **(48) 99975-5928**, informando nome do aluno, curso, universidade e semestre.' });
-    B.push({ k: 'p', t: '**Parágrafo Quarto:** O Valor deste contrato refere-se ao pagamento iniciado até dia **' + dataBR(ctx.dataIPCA) + '**. A partir desta data, o valor será corrigido pelo IPCA.' });
+    if ((ctx.turma && ctx.turma.linkFotoIncluso)) {
+      B.push({ k: 'p', t: '**Parágrafo Quarto:** O valor deste contrato refere-se ao pagamento mensal iniciado até o dia **' + dataBR(ctx.dataIPCA) + '**, hipótese em que não haverá correção pelo IPCA sobre as parcelas. Caso o CONTRATANTE inicie o pagamento somente após essa data, o valor será corrigido pelo IPCA.' });
+    } else {
+      B.push({ k: 'p', t: '**Parágrafo Quarto:** O Valor deste contrato refere-se ao pagamento iniciado até dia **' + dataBR(ctx.dataIPCA) + '**. A partir desta data, o valor será corrigido pelo IPCA.' });
+    }
     B.push({ k: 'h', t: 'CLÁUSULA TERCEIRA - PODERES DA COMISSÃO DE FORMATURA' });
     B.push({ k: 'p', t: 'O CONTRATANTE outorga poderes plenos à comissão de formatura, que poderá assinar, alterar itens de serviços e tomar decisões pertinentes à formatura.' });
     B.push({ k: 'p', t: '**Parágrafo Primeiro:** A comissão de formatura informará as decisões tomadas por meio dos canais que considerar adequados. Cabe ao CONTRATANTE buscar essas informações.' });
@@ -332,13 +336,10 @@
     B.push({ k: 'h', t: 'CLÁUSULA OITAVA - EXCLUSIVIDADE DE FOTO E VÍDEO' });
     B.push({ k: 'p', t: 'A exploração dos serviços de fotografia e vídeo na formatura será de exclusividade da CONTRATADA, incluindo a comercialização de tais serviços.' });
     B.push({ k: 'p', t: '**Parágrafo Primeiro:** O CONTRATANTE autoriza, sem ônus, a veiculação de sua imagem nos eventos oficiais da formatura para fins de divulgação em anúncios publicitários da CONTRATADA.' });
-    B.push({ k: 'h', t: 'CLÁUSULA NONA - DISPONIBILIZAÇÃO DE LINK DE FOTOS' });
+    B.push({ k: 'h', t: 'CLÁUSULA NONA - LINK DE FOTOS' });
     if (ctx.turma && ctx.turma.linkFotoIncluso) {
-      // Turmas em que o link de fotos já está incluso no valor do contrato (Anexo 1): texto próprio, sem contrato específico do link.
-      B.push({ k: 'p', t: 'O link para acesso às fotos digitais da formatura está **incluso** no valor do presente contrato, conforme o Anexo 1, não havendo cobrança adicional nem necessidade de contrato específico para este fim.' });
-      B.push({ k: 'p', t: '**Parágrafo Primeiro:** O link será disponibilizado pela CONTRATADA à comissão de formatura e permanecerá ativo por até 60 (sessenta) dias corridos, contados a partir do seu envio, cabendo ao CONTRATANTE realizar o download dos arquivos dentro desse período. Após esse prazo, o link será desativado.' });
-      B.push({ k: 'p', t: '**Parágrafo Segundo:** Para eventual reativação e novo envio, será cobrado o valor de R$ 40,00 (quarenta reais), mediante solicitação expressa do CONTRATANTE ou da comissão.' });
-      B.push({ k: 'p', t: '**Parágrafo Terceiro:** A disponibilização do link fica condicionada à adimplência do CONTRATANTE.' });
+      B.push({ k: 'p', t: 'O valor da quota parte previsto na Cláusula Segunda **já inclui** a disponibilização do link para acesso às fotos digitais da formatura, não havendo qualquer cobrança adicional ao CONTRATANTE por esse serviço.' });
+      B.push({ k: 'p', t: '**Parágrafo Único:** O link será disponibilizado pela CONTRATADA à comissão de formatura e permanecerá ativo por até 60 (sessenta) dias corridos, contados a partir do seu envio. Após esse prazo, o link será desativado. Para eventual reativação e novo envio, será cobrado o valor de R$ 40,00 (quarenta reais), mediante solicitação expressa do CONTRATANTE ou da comissão.' });
     } else {
       B.push({ k: 'p', t: 'A disponibilização de link para acesso às fotos digitais da formatura está condicionada a uma das seguintes situações:' });
       B.push({ k: 'p', ind: true, t: 'I - Caso esteja expressamente previsto no presente contrato individual;' });
